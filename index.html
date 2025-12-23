@@ -1,55 +1,103 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Counter</title>
+    <title>Gym Track</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; max-width: 600px; margin: auto; }
-        .box { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; }
-        button { width: 100%; padding: 15px; margin: 5px 0; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-blue { background: #2196F3; } .btn-green { background: #00C853; } .btn-red { background: #D32F2F; } .btn-purple { background: #6200EE; }
-        input { width: 70%; padding: 10px; border-radius: 5px; border: none; text-align: center; font-size: 16px; }
-        #status { font-weight: bold; color: #aaa; margin-bottom: 10px; }
-        #liveData { font-size: 48px; font-weight: bold; color: #03dac6; margin: 20px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        td, th { border-bottom: 1px solid #444; padding: 8px; text-align: left; }
-        .valid { color: #00C853; } .invalid { color: #D32F2F; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; max-width: 600px; margin: auto; }
+        h1 { color: #03dac6; margin-bottom: 5px; letter-spacing: 1px; }
+        .box { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; position: relative; }
+        
+        button { width: 100%; padding: 14px; margin: 6px 0; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        .btn-blue { background: #2196F3; } 
+        .btn-green { background: #00C853; } 
+        .btn-red { background: #D32F2F; } 
+        .btn-purple { background: #6200EE; }
+        .btn-gray { background: #424242; color: #aaa; font-size: 12px; padding: 8px; width: auto; margin-top: 10px;}
+
+        input { width: 80%; padding: 12px; border-radius: 6px; border: 1px solid #444; background: #2c2c2c; color: #fff; text-align: center; font-size: 18px; letter-spacing: 2px; font-family: monospace; }
+        
+        #status { font-weight: bold; color: #777; margin-bottom: 20px; font-size: 14px; }
+        #liveData { font-size: 56px; font-weight: bold; color: #03dac6; margin: 15px 0; }
+        #batVal { position: absolute; top: 15px; right: 15px; color: #ffeb3b; font-size: 14px; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        td, th { border-bottom: 1px solid #333; padding: 10px; text-align: left; }
+        th { color: #888; }
+        .valid { color: #00C853; font-weight: bold; } 
+        .invalid { color: #D32F2F; }
+
+        .row { display: flex; gap: 10px; }
+        .half { width: 50%; }
+        hr { border: 0; border-top: 1px solid #333; margin: 15px 0; }
+        .label { font-size: 12px; color: #aaa; margin-bottom: 5px; display: block; text-align: left; }
     </style>
 </head>
 <body>
-    <h1>🏋️ Gym Counter</h1>
-    <div id="status">Odpojeno</div>
+
+    <h1>GYM TRACK</h1>
+    <div id="status">Disconnected</div>
     
-    <div class="box">
-        <button onclick="connectBLE()" class="btn-blue">🔌 PŘIPOJIT</button>
+    <div class="box" id="connectBox">
+        <button onclick="connectBLE()" class="btn-blue">CONNECT DEVICE</button>
     </div>
 
     <div id="mainPanel" style="display:none;">
+        
         <div class="box">
-            <div id="liveData">0 REPS</div>
-            <div id="batVal" style="color:yellow; font-size:14px;">Bat: -- V</div>
-            <button onclick="send('S')" class="btn-green">▶ START</button>
-            <button onclick="send('E')" class="btn-red">⏹ STOP & REPORT</button>
+            <div id="batVal">--%</div>
+            <div style="font-size:12px; color:#aaa; margin-top:10px;">CURRENT SESSION</div>
+            <div id="liveData">0</div>
+            <div style="font-size:14px; color:#aaa; margin-bottom:15px;">REPS</div>
+            
+            <div class="row">
+                <button onclick="send('S')" class="btn-green half">▶ START</button>
+                <button onclick="send('E')" class="btn-red half">⏹ FINISH</button>
+            </div>
         </div>
 
         <div class="box">
-            <h3>Načíst / Kalibrovat</h3>
-            <input type="text" id="codeIn" placeholder="Kód cviku (např. A005A)">
-            <button onclick="loadCode()" class="btn-purple">NAHRÁT KÓD</button>
-            <hr style="border-color:#333">
-            <p style="font-size:12px">Nová kalibrace:</p>
-            <button onclick="send('C')" style="width:45%; background:#333">Angle START</button>
-            <button onclick="send('c')" style="width:45%; background:#333">Angle STOP</button>
-            <br>
-            <button onclick="send('P')" style="width:45%; background:#333">Linear START</button>
-            <button onclick="send('p')" style="width:45%; background:#333">Linear STOP</button>
+            <h3>Calibration & Setup</h3>
+            
+            <span class="label">Exercise Code (Load or Create):</span>
+            <input type="text" id="codeIn" placeholder="Axxxx / Lxxxx">
+            <button onclick="loadCode()" class="btn-purple">LOAD CODE</button>
+            
+            <hr>
+            <span class="label">Create New Code (Calibrate):</span>
+            
+            <div style="margin-bottom:10px;">
+                <span class="label" style="display:inline;">Angle Mode (Machines/Lever):</span>
+                <div class="row">
+                    <button onclick="send('C')" class="half" style="background:#333">1. Start (Bottom)</button>
+                    <button onclick="send('c')" class="half" style="background:#333">2. Stop (Top)</button>
+                </div>
+            </div>
+
+            <div>
+                <span class="label" style="display:inline;">Linear Mode (Cable/Stack):</span>
+                <div class="row">
+                    <button onclick="send('P')" class="half" style="background:#333">1. Start (Bottom)</button>
+                    <button onclick="send('p')" class="half" style="background:#333">2. Stop (Top)</button>
+                </div>
+            </div>
+            
+            <p style="font-size:11px; color:#666; margin-top:5px;">
+                Code will appear in the box above after clicking "Stop".
+            </p>
+
+            <button onclick="testSensor()" class="btn-gray">🛠 Test Sensor</button>
         </div>
 
         <div class="box">
-            <h3>Historie</h3>
-            <table id="historyTable"><thead><tr><th>#</th><th>%</th><th>Stav</th></tr></thead><tbody id="histBody"></tbody></table>
-            <div id="log" style="font-size:10px; color:gray; margin-top:10px; text-align:left;"></div>
+            <h3>Session History</h3>
+            <table id="historyTable">
+                <thead><tr><th>#</th><th>Range</th><th>Status</th></tr></thead>
+                <tbody id="histBody"></tbody>
+            </table>
+            <div id="log" style="display:none;"></div> 
         </div>
     </div>
 
@@ -62,10 +110,7 @@
         async function connectBLE() {
             try {
                 dev = await navigator.bluetooth.requestDevice({ filters: [{ name: 'GymCounter' }], optionalServices: [sUUID] });
-                dev.addEventListener('gattserverdisconnected', () => { 
-                    document.getElementById("status").innerText = "❌ Odpojeno"; 
-                    document.getElementById("mainPanel").style.display = "none"; 
-                });
+                dev.addEventListener('gattserverdisconnected', onDisconnect);
                 srv = await dev.gatt.connect();
                 const svc = await srv.getPrimaryService(sUUID);
                 chCmd = await svc.getCharacteristic(cCmd);
@@ -73,28 +118,79 @@
                 await chData.startNotifications();
                 chData.addEventListener('characteristicvaluechanged', handleData);
                 
-                document.getElementById("status").innerText = "✅ Připojeno";
+                document.getElementById("status").innerText = "🟢 Connected";
+                document.getElementById("connectBox").style.display = "none";
                 document.getElementById("mainPanel").style.display = "block";
+                
+                // Get Battery status immediately
                 setTimeout(() => send('B'), 500);
-            } catch (e) { alert("Chyba: " + e); }
+
+            } catch (e) { alert("Connection error: " + e); }
+        }
+
+        function onDisconnect() {
+            document.getElementById("status").innerText = "🔴 Disconnected";
+            document.getElementById("connectBox").style.display = "block";
+            document.getElementById("mainPanel").style.display = "none";
         }
 
         async function send(cmd) { if(chCmd) await chCmd.writeValue(new TextEncoder().encode(cmd)); }
+
         async function loadCode() { 
-            let c = document.getElementById("codeIn").value; 
-            if(c.length>4) await send("LOAD:"+c); 
+            let c = document.getElementById("codeIn").value.trim().toUpperCase(); 
+            if(c.length > 4) {
+                await send("LOAD:"+c);
+                alert("Code " + c + " loaded!");
+            } else {
+                alert("Invalid code format.");
+            }
+        }
+
+        async function testSensor() {
+            // Sends Calibration Start command just to check connection/sensor
+            await send('C');
+            // If sensor works, it replies ANG_START_OK handled below
         }
 
         function handleData(e) {
             let v = new TextDecoder().decode(e.target.value);
-            if (v.startsWith("CODE:")) { document.getElementById("codeIn").value = v.split(":")[1]; alert("Kód: " + v.split(":")[1]); }
-            else if (v.includes("%")) document.getElementById("liveData").innerText = v.split(":")[0] + " REPS";
-            else if (v.startsWith("BAT:")) document.getElementById("batVal").innerText = v;
+            
+            if (v.startsWith("CODE:")) { 
+                let code = v.split(":")[1];
+                document.getElementById("codeIn").value = code; 
+                alert("✅ New Code Created: " + code + "\n(Saved to input box)");
+            }
+            else if (v.includes("%") && !v.includes("BAT")) { 
+                // "5: 98%"
+                document.getElementById("liveData").innerText = v.split(":")[0];
+            }
+            else if (v.startsWith("BAT:")) {
+                // Parse Voltage to %
+                let volt = parseFloat(v.split(":")[1]); // e.g. 4.15
+                // Map 3.3V (0%) to 4.2V (100%)
+                let pct = Math.round(((volt - 3.3) / (4.2 - 3.3)) * 100);
+                if (pct > 100) pct = 100;
+                if (pct < 0) pct = 0;
+                document.getElementById("batVal").innerText = "Bat: " + pct + "%";
+            }
             else if (v.startsWith("REP:")) {
+                // Report handling
                 let tbody = document.getElementById("histBody"); tbody.innerHTML = "";
-                v.split(";")[1].split(",").forEach((r,i) => {
-                    if(r) tbody.innerHTML += `<tr><td>${i+1}</td><td>${r}%</td><td class="${r>=70?'valid':'invalid'}">${r>=70?'OK':'NO'}</td></tr>`;
+                let parts = v.split(";");
+                let reps = parts[1].split(",");
+                reps.forEach((r,i) => {
+                    if(r === "") return;
+                    let valid = parseFloat(r) >= 70;
+                    tbody.innerHTML += `<tr><td>${i+1}</td><td>${r}%</td><td class="${valid?'valid':'invalid'}">${valid?'OK':'NO REP'}</td></tr>`;
                 });
+            }
+            else if (v === "ANG_START_OK") {
+                // Only show this alert if user clicked Test (simple logic)
+                // Or just show a toast. For now, simple alert is fine for testing.
+                console.log("Sensor OK");
+            }
+            else if (v === "LIN_START_OK") {
+                 console.log("Linear Sensor OK");
             }
         }
     </script>
