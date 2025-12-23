@@ -16,6 +16,8 @@
         .btn-red { background: #D32F2F; } 
         .btn-purple { background: #6200EE; }
         .btn-gray { background: #424242; color: #aaa; font-size: 12px; padding: 8px; width: auto; margin-top: 10px;}
+        /* Reboot button style */
+        .btn-danger-zone { background: #220000; color: #d32f2f; border: 1px solid #440000; font-size: 11px; padding: 10px; margin-top: 30px; }
 
         input { width: 80%; padding: 12px; border-radius: 6px; border: 1px solid #444; background: #2c2c2c; color: #fff; text-align: center; font-size: 18px; letter-spacing: 2px; font-family: monospace; }
         
@@ -97,8 +99,10 @@
                 <thead><tr><th>#</th><th>Range</th><th>Status</th></tr></thead>
                 <tbody id="histBody"></tbody>
             </table>
-            <div id="log" style="display:none;"></div> 
         </div>
+
+        <button onclick="rebootDevice()" class="btn-danger-zone">⚠️ REBOOT DEVICE SYSTEM</button>
+        <div style="height: 30px;"></div>
     </div>
 
     <script>
@@ -147,9 +151,14 @@
         }
 
         async function testSensor() {
-            // Sends Calibration Start command just to check connection/sensor
             await send('C');
-            // If sensor works, it replies ANG_START_OK handled below
+        }
+
+        async function rebootDevice() {
+            if(confirm("⚠️ Are you sure you want to REBOOT the device?\n\nThis will disconnect Bluetooth.")) {
+                await send('R');
+                alert("Device is rebooting... Please wait a few seconds and reconnect.");
+            }
         }
 
         function handleData(e) {
@@ -161,20 +170,15 @@
                 alert("✅ New Code Created: " + code + "\n(Saved to input box)");
             }
             else if (v.includes("%") && !v.includes("BAT")) { 
-                // "5: 98%"
                 document.getElementById("liveData").innerText = v.split(":")[0];
             }
             else if (v.startsWith("BAT:")) {
-                // Parse Voltage to %
-                let volt = parseFloat(v.split(":")[1]); // e.g. 4.15
-                // Map 3.3V (0%) to 4.2V (100%)
+                let volt = parseFloat(v.split(":")[1]); 
                 let pct = Math.round(((volt - 3.3) / (4.2 - 3.3)) * 100);
-                if (pct > 100) pct = 100;
-                if (pct < 0) pct = 0;
+                if (pct > 100) pct = 100; if (pct < 0) pct = 0;
                 document.getElementById("batVal").innerText = "Bat: " + pct + "%";
             }
             else if (v.startsWith("REP:")) {
-                // Report handling
                 let tbody = document.getElementById("histBody"); tbody.innerHTML = "";
                 let parts = v.split(";");
                 let reps = parts[1].split(",");
@@ -185,12 +189,7 @@
                 });
             }
             else if (v === "ANG_START_OK") {
-                // Only show this alert if user clicked Test (simple logic)
-                // Or just show a toast. For now, simple alert is fine for testing.
                 console.log("Sensor OK");
-            }
-            else if (v === "LIN_START_OK") {
-                 console.log("Linear Sensor OK");
             }
         }
     </script>
