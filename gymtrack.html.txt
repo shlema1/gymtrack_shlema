@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Counter</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; max-width: 600px; margin: auto; }
+        .box { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; }
+        button { width: 100%; padding: 15px; margin: 5px 0; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-blue { background: #2196F3; } .btn-green { background: #00C853; } .btn-red { background: #D32F2F; } .btn-purple { background: #6200EE; }
+        input { width: 70%; padding: 10px; border-radius: 5px; border: none; text-align: center; font-size: 16px; }
+        #status { font-weight: bold; color: #aaa; margin-bottom: 10px; }
+        #liveData { font-size: 48px; font-weight: bold; color: #03dac6; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        td, th { border-bottom: 1px solid #444; padding: 8px; text-align: left; }
+        .valid { color: #00C853; } .invalid { color: #D32F2F; }
+    </style>
+</head>
+<body>
+    <h1>🏋️ Gym Counter</h1>
+    <div id="status">Odpojeno</div>
+    
+    <div class="box">
+        <button onclick="connectBLE()" class="btn-blue">🔌 PŘIPOJIT</button>
+    </div>
+
+    <div id="mainPanel" style="display:none;">
+        <div class="box">
+            <div id="liveData">0 REPS</div>
+            <div id="batVal" style="color:yellow; font-size:14px;">Bat: -- V</div>
+            <button onclick="send('S')" class="btn-green">▶ START</button>
+            <button onclick="send('E')" class="btn-red">⏹ STOP & REPORT</button>
+        </div>
+
+        <div class="box">
+            <h3>Načíst / Kalibrovat</h3>
+            <input type="text" id="codeIn" placeholder="Kód cviku (např. A005A)">
+            <button onclick="loadCode()" class="btn-purple">NAHRÁT KÓD</button>
+            <hr style="border-color:#333">
+            <p style="font-size:12px">Nová kalibrace:</p>
+            <button onclick="send('C')" style="width:45%; background:#333">Angle START</button>
+            <button onclick="send('c')" style="width:45%; background:#333">Angle STOP</button>
+            <br>
+            <button onclick="send('P')" style="width:45%; background:#333">Linear START</button>
+            <button onclick="send('p')" style="width:45%; background:#333">Linear STOP</button>
+        </div>
+
+        <div class="box">
+            <h3>Historie</h3>
+            <table id="historyTable"><thead><tr><th>#</th><th>%</th><th>Stav</th></tr></thead><tbody id="histBody"></tbody></table>
+            <div id="log" style="font-size:10px; color:gray; margin-top:10px; text-align:left;"></div>
+        </div>
+    </div>
+
+    <script>
+        const sUUID = "12345678-1234-1234-1234-123456789012";
+        const cCmd = "87654321-4321-4321-4321-210987654321";
+        const cData = "abcdef01-1234-5678-1234-56789abcdef0";
+        let dev, srv, chCmd;
+
+        async function connectBLE() {
+            try {
+                dev = await navigator.bluetooth.requestDevice({ filters: [{ name: 'GymCounter' }], optionalServices: [sUUID] });
+                dev.addEventListener('gattserverdisconnected', () => { 
+                    document.getElementById("status").innerText = "❌ Odpojeno"; 
+                    document.getElementById("mainPanel").style.display = "none"; 
+                });
+                srv = await dev.gatt.connect();
+                const svc = await srv.getPrimaryService(sUUID);
+                chCmd = await svc.getCharacteristic(cCmd);
+                const chData = await svc.getCharacteristic(cData);
+                await chData.startNotifications();
+                chData.addEventListener('characteristicvaluechanged', handleData);
+                
+                document.getElementById("status").innerText = "✅ Připojeno";
+                document.getElementById("mainPanel").style.display = "block";
+                setTimeout(() => send('B'), 500);
+            } catch (e) { alert("Chyba: " + e); }
+        }
+
+        async function send(cmd) { if(chCmd) await chCmd.writeValue(new TextEncoder().encode(cmd)); }
+        async function loadCode() { 
+            let c = document.getElementById("codeIn").value; 
+            if(c.length>4) await send("LOAD:"+c); 
+        }
+
+        function handleData(e) {
+            let v = new TextDecoder().decode(e.target.value);
+            if (v.startsWith("CODE:")) { document.getElementById("codeIn").value = v.split(":")[1]; alert("Kód: " + v.split(":")[1]); }
+            else if (v.includes("%")) document.getElementById("liveData").innerText = v.split(":")[0] + " REPS";
+            else if (v.startsWith("BAT:")) document.getElementById("batVal").innerText = v;
+            else if (v.startsWith("REP:")) {
+                let tbody = document.getElementById("histBody"); tbody.innerHTML = "";
+                v.split(";")[1].split(",").forEach((r,i) => {
+                    if(r) tbody.innerHTML += `<tr><td>${i+1}</td><td>${r}%</td><td class="${r>=70?'valid':'invalid'}">${r>=70?'OK':'NO'}</td></tr>`;
+                });
+            }
+        }
+    </script>
+</body>
+</html>
