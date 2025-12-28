@@ -7,42 +7,32 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; max-width: 600px; margin: auto; user-select: none; }
         h1 { color: #03dac6; margin-bottom: 5px; letter-spacing: 1px; font-weight: 300; text-transform: uppercase; }
-        
-        /* Container styling */
         .box { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        
-        /* Button styling */
         button { width: 100%; padding: 14px; margin: 6px 0; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; color: white; transition: 0.2s; touch-action: manipulation; }
         button:active { transform: scale(0.98); opacity: 0.9; }
-        
         .btn-blue { background: #2196F3; } 
         .btn-green { background: #00C853; } 
         .btn-red { background: #D32F2F; } 
         .btn-purple { background: #6200EE; }
+        .btn-orange { background: #FF9800; color: #000; } /* TARE Button */
         .btn-danger-zone { background: #1a0000; color: #b71c1c; border: 1px solid #440000; font-size: 11px; padding: 10px; margin-top: 40px; }
-
-        /* Inputs */
         input { width: 80%; padding: 12px; border-radius: 6px; border: 1px solid #444; background: #2c2c2c; color: #fff; text-align: center; font-size: 18px; letter-spacing: 2px; font-family: monospace; outline: none; }
         input:focus { border-color: #03dac6; }
-
-        /* Stats styling */
         #status { font-weight: bold; color: #666; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
         #liveData { font-size: 64px; font-weight: 700; color: #03dac6; margin: 10px 0; line-height: 1; }
         #batVal { position: absolute; top: 15px; right: 15px; color: #ffeb3b; font-size: 14px; font-weight: bold; }
-        
-        /* Table styling */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         td, th { border-bottom: 1px solid #333; padding: 12px 8px; text-align: left; }
         th { color: #888; font-size: 12px; text-transform: uppercase; }
         .valid { color: #00C853; font-weight: bold; } 
         .invalid { color: #D32F2F; }
         .tempo-text { font-size: 12px; color: #aaa; font-family: monospace; }
-
-        /* Layout helpers */
         .row { display: flex; gap: 10px; }
         .half { width: 50%; }
         hr { border: 0; border-top: 1px solid #333; margin: 15px 0; }
         .label { font-size: 11px; color: #888; margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; }
+        .drift-val { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
+        .drift-bad { color: #ff5252; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -71,13 +61,16 @@
         <div class="box">
             <h3 style="margin-top:0; font-size:16px; color:#ddd;">Setup</h3>
             
+            <div style="background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <button onclick="send('T')" class="btn-orange" style="margin:0;">⚖️ TARE (ZERO)</button>
+                <div id="driftDisplay" class="drift-val">Drift: --</div>
+            </div>
+
             <span class="label">Exercise Code</span>
             <input type="text" id="codeIn" placeholder="Axxxx / Lxxxx">
             <button onclick="loadCode()" class="btn-purple" style="margin-top:10px;">LOAD CODE</button>
-            
             <hr>
             <span class="label">New Calibration</span>
-            
             <div style="margin-bottom:15px;">
                 <span class="label" style="color:#03dac6;">Angle Mode (Machines)</span>
                 <div class="row">
@@ -85,7 +78,6 @@
                     <button onclick="send('c')" class="half" style="background:#333">2. Stop (Peak)</button>
                 </div>
             </div>
-
             <div>
                 <span class="label" style="color:#03dac6;">Linear Mode (Cables)</span>
                 <div class="row">
@@ -93,10 +85,6 @@
                     <button onclick="send('p')" class="half" style="background:#333">2. Stop (Peak)</button>
                 </div>
             </div>
-            
-            <p style="font-size:11px; color:#555; margin-top:8px;">
-                Code will auto-fill after calibration.
-            </p>
         </div>
 
         <div class="box">
@@ -112,7 +100,6 @@
     </div>
 
     <script>
-        // BLE Constants
         const sUUID = "12345678-1234-1234-1234-123456789012";
         const cCmd = "87654321-4321-4321-4321-210987654321";
         const cData = "abcdef01-1234-5678-1234-56789abcdef0";
@@ -120,7 +107,6 @@
         let dev, srv, chCmd;
         let wakeLock = null;
 
-        // --- CONNECTION & WAKE LOCK ---
         async function connectBLE() {
             try {
                 dev = await navigator.bluetooth.requestDevice({ 
@@ -137,23 +123,12 @@
                 await chData.startNotifications();
                 chData.addEventListener('characteristicvaluechanged', handleData);
                 
-                // UI Updates
                 document.getElementById("status").innerText = "🟢 CONNECTED";
                 document.getElementById("connectBox").style.display = "none";
                 document.getElementById("mainPanel").style.display = "block";
                 
-                // Request Battery
                 setTimeout(() => send('B'), 500);
-
-                // ACTIVATING WAKE LOCK (Keep Screen On)
-                if ('wakeLock' in navigator) {
-                    try {
-                        wakeLock = await navigator.wakeLock.request('screen');
-                        console.log("Wake Lock active");
-                    } catch (err) {
-                        console.log("Wake Lock error: " + err);
-                    }
-                }
+                if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
 
             } catch (e) { alert("Connection failed: " + e); }
         }
@@ -167,36 +142,42 @@
 
         async function send(cmd) { if(chCmd) await chCmd.writeValue(new TextEncoder().encode(cmd)); }
 
-        // --- DATA HANDLING ---
         function handleData(e) {
             let v = new TextDecoder().decode(e.target.value);
             
-            // 1. New Code Generated
             if (v.startsWith("CODE:")) { 
                 let code = v.split(":")[1];
                 document.getElementById("codeIn").value = code; 
                 alert("✅ Calibration Saved!\nCode: " + code);
             }
-            // 2. Live Reps / Percent (ignoring history reports)
             else if (v.includes("%") && !v.includes("BAT") && !v.includes("REP:")) { 
-                // Format: "1: 98% | 3.0s / 1.0s" -> We just want the Percent for big display
                 let parts = v.split("%"); 
-                let numPart = parts[0].split(":")[1]; // get " 98"
+                let numPart = parts[0].split(":")[1]; 
                 if(numPart) document.getElementById("liveData").innerText = numPart.trim() + "%";
             }
-            // 3. Battery Status
             else if (v.startsWith("BAT:")) {
-                let volt = parseFloat(v.split(":")[1]); 
-                // Map 3.3V to 4.2V scale
-                let pct = Math.round(((volt - 3.3) / (4.2 - 3.3)) * 100);
-                if (pct > 100) pct = 100; if (pct < 0) pct = 0;
+                let pct = v.split(":")[1]; 
                 document.getElementById("batVal").innerText = pct + "%";
             }
-            // 4. Session History Report
+            // ZPRACOVÁNÍ DRIFTU (LIVE:2.5)
+            else if (v.startsWith("LIVE:")) {
+                let val = parseFloat(v.split(":")[1]);
+                let el = document.getElementById("driftDisplay");
+                el.innerText = "Drift: " + val.toFixed(1) + (document.getElementById("codeIn").value.startsWith("L") ? " Pa" : "°");
+                // Pokud je drift větší než 5 stupňů (nebo 5 Pa), zčervená
+                if(Math.abs(val) > 5.0) el.className = "drift-val drift-bad";
+                else el.className = "drift-val";
+            }
+            else if (v === "TARE_OK") {
+                // Krátké bliknutí pro potvrzení
+                let btn = document.querySelector(".btn-orange");
+                let orig = btn.innerText;
+                btn.innerText = "✅ ZERO SET";
+                setTimeout(() => btn.innerText = orig, 1000);
+            }
             else if (v.startsWith("REP:")) {
                 let tbody = document.getElementById("histBody"); tbody.innerHTML = "";
                 let parts = v.split(";");
-                // parts[1] example: "98|3.0|1.0,95|3.1|1.2,"
                 let reps = parts[1].split(",");
                 
                 reps.forEach((r,i) => {
@@ -216,11 +197,17 @@
                     </tr>`;
                 });
             }
-            // 5. Calibration Confirmations
-            else if (v === "ANG_START_OK") console.log("Angle Start OK");
-            else if (v === "LIN_START_OK") console.log("Linear Start OK");
         }
 
-        // --- BUTTON ACTIONS ---
         async function loadCode() { 
-            let c = document.getElementById("code
+            let c = document.getElementById("codeIn").value.trim().toUpperCase(); 
+            if(c.length > 4) { await send("LOAD:"+c); alert("Code " + c + " loaded!"); } 
+            else alert("Invalid code (Format: Axxxx)");
+        }
+
+        async function rebootDevice() {
+            if(confirm("⚠️ REBOOT DEVICE?")) { await send('R'); }
+        }
+    </script>
+</body>
+</html>
