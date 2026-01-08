@@ -41,7 +41,7 @@
     
     <div class="box" id="connectBox">
         <button onclick="connectBLE()" class="btn-blue">CONNECT DEVICE</button>
-        <p style="font-size:12px; color:#555; margin-top:10px;">Ensure Bluetooth is ON</p>
+        <p style="font-size:12px; color:#555; margin-top:10px;">Ensure Bluetooth is ON & Device Unpaired</p>
     </div>
 
     <div id="mainPanel" style="display:none;">
@@ -100,25 +100,30 @@
     </div>
 
     <script>
+        // UUIDs matching v6.8 Firmware
         const sUUID = "12345678-1234-1234-1234-123456789012";
         const cCmd = "87654321-4321-4321-4321-210987654321";
         const cData = "abcdef01-1234-5678-1234-56789abcdef0";
         
         let dev, srv, chCmd;
         let wakeLock = null;
-        let currentMode = "A"; 
+        let currentMode = "A"; // Tracks current mode for display units (Angle vs Linear)
 
         async function connectBLE() {
             try {
+                // Filters match both "GymCounter" and potential renamed devices
                 dev = await navigator.bluetooth.requestDevice({ 
-                    filters: [{ name: 'GymCounter' }], 
+                    filters: [{ namePrefix: 'Gym' }], 
                     optionalServices: [sUUID] 
                 });
+                
                 dev.addEventListener('gattserverdisconnected', onDisconnect);
                 srv = await dev.gatt.connect();
                 const svc = await srv.getPrimaryService(sUUID);
+                
                 chCmd = await svc.getCharacteristic(cCmd);
                 const chData = await svc.getCharacteristic(cData);
+                
                 await chData.startNotifications();
                 chData.addEventListener('characteristicvaluechanged', handleData);
                 
@@ -126,10 +131,15 @@
                 document.getElementById("connectBox").style.display = "none";
                 document.getElementById("mainPanel").style.display = "block";
                 
+                // Request battery level on connect
                 setTimeout(() => send('B'), 500);
+                
+                // Keep screen awake if supported
                 if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
 
-            } catch (e) { alert("Connection failed: " + e); }
+            } catch (e) { 
+                alert("Connection failed: " + e + "\n\nTip: Unpair from system Bluetooth settings first!"); 
+            }
         }
 
         function onDisconnect() {
@@ -141,6 +151,7 @@
 
         async function send(cmd) { 
             if(chCmd) await chCmd.writeValue(new TextEncoder().encode(cmd));
+            // Automatically switch UI mode based on command sent
             if(cmd === 'C') currentMode = "A";
             if(cmd === 'P') currentMode = "L";
         }
@@ -148,45 +159,58 @@
         function handleData(e) {
             let v = new TextDecoder().decode(e.target.value);
             
+            // 1. CALIBRATION CODE RECEIVED
             if (v.startsWith("CODE:")) { 
                 let code = v.split(":")[1];
                 document.getElementById("codeIn").value = code; 
                 if(code.startsWith("L")) currentMode = "L"; else currentMode = "A";
                 alert("✅ Calibration Saved!\nCode: " + code);
             }
+            
+            // 2. LIVE DATA STREAM (During Setup/Rest)
             else if (v.startsWith("LIVE:")) {
                 let val = parseFloat(v.split(":")[1]);
                 let el = document.getElementById("driftDisplay");
+                // "m" for Linear, "°" for Angle
                 let unit = (currentMode === "L") ? " m" : "°";
                 el.innerText = "Pos: " + val.toFixed(2) + unit;
             }
-            // LIVE UPDATE během série
+            
+            // 3. LIVE REP UPDATE (During Set)
+            // C++ Format: "validReps: maxRepPct% | t1 / t2" -> "5: 98% | 1.2s / 1.0s"
             else if (v.includes("%") && !v.includes("BAT") && !v.includes("REP:")) { 
-                // Formát: "2: 95% ..." (2 = počet validních opakování)
                 let parts = v.split(":");
                 let validCount = parts[0]; 
                 if(validCount) document.getElementById("liveData").innerText = validCount;
             }
+            
+            // 4. BATTERY LEVEL
             else if (v.startsWith("BAT:")) {
                 let pct = v.split(":")[1];
                 document.getElementById("batVal").innerText = pct + "%";
             }
+            
+            // 5. TARE CONFIRMATION
             else if (v === "TARE_OK") {
                 let btn = document.querySelector(".btn-orange");
                 let orig = btn.innerText;
                 btn.innerText = "✅ ZERO OK";
                 setTimeout(() => btn.innerText = orig, 1000);
             }
-            // HISTORIE po sérii
+            
+            // 6. SESSION HISTORY (After pressing Finish)
+            // C++ Format: "REP:Attempts/Valid;pct|t1|t2,pct|t1|t2,..."
             else if (v.startsWith("REP:")) {
                 let tbody = document.getElementById("histBody");
                 tbody.innerHTML = "";
+                
                 let parts = v.split(";");
-                // "REP:Attempts/Valid" -> "REP:10/8"
-                let stats = parts[0].split("REP:")[1].split("/"); 
-                // Zobrazíme počet PLATNÝCH jako hlavní číslo
+                let stats = parts[0].split("REP:")[1].split("/"); // e.g., "12/10"
+                
+                // Update the main display with final Valid count
                 document.getElementById("liveData").innerText = stats[1]; 
 
+                // Parse individual reps
                 let reps = parts[1].split(",");
                 reps.forEach((r,i) => {
                     if(r === "") return;
@@ -194,7 +218,8 @@
                     let pct = parseFloat(d[0]);
                     let t1 = d[1] ? d[1] : "-";
                     let t2 = d[2] ? d[2] : "-";
-                    // Validace je nyní 80% (viz C++ kód)
+                    
+                    // Logic from C++: Valid if >= 80%
                     let valid = pct >= 80;
                     
                     tbody.innerHTML += `
