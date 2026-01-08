@@ -1,251 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Track - Strict Mode</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; text-align: center; padding: 20px; max-width: 600px; margin: auto; user-select: none; }
-        h1 { color: #03dac6; margin-bottom: 5px; letter-spacing: 1px; font-weight: 300; text-transform: uppercase; }
-        .box { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        button { width: 100%; padding: 14px; margin: 6px 0; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; color: white; transition: 0.2s; touch-action: manipulation; }
-        button:active { transform: scale(0.98); opacity: 0.9; }
-        .btn-blue { background: #2196F3; } 
-        .btn-green { background: #00C853; } 
-        .btn-red { background: #D32F2F; } 
-        .btn-purple { background: #6200EE; }
-        .btn-orange { background: #FF9800; color: #000; }
-        .btn-danger-zone { background: #1a0000; color: #b71c1c; border: 1px solid #440000; font-size: 11px; padding: 10px; margin-top: 40px; }
-        input { width: 80%; padding: 12px; border-radius: 6px; border: 1px solid #444; background: #2c2c2c; color: #fff; text-align: center; font-size: 18px; letter-spacing: 2px; font-family: monospace; outline: none; }
-        input:focus { border-color: #03dac6; }
-        #status { font-weight: bold; color: #666; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-        #liveData { font-size: 64px; font-weight: 700; color: #03dac6; margin: 10px 0; line-height: 1; }
-        #batVal { position: absolute; top: 15px; right: 15px; color: #ffeb3b; font-size: 14px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        td, th { border-bottom: 1px solid #333; padding: 12px 8px; text-align: left; }
-        th { color: #888; font-size: 12px; text-transform: uppercase; }
-        .valid { color: #00C853; font-weight: bold; } 
-        .invalid { color: #D32F2F; font-weight: bold; }
-        .tempo-text { font-size: 12px; color: #aaa; font-family: monospace; }
-        .row { display: flex; gap: 10px; }
-        .half { width: 50%; }
-        hr { border: 0; border-top: 1px solid #333; margin: 15px 0; }
-        .label { font-size: 11px; color: #888; margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; }
-        .drift-val { font-size: 12px; color: #888; margin-top: 4px; font-family: monospace; }
-    </style>
+<meta charset="UTF-8">
+<title>GymTrack</title>
+<style>
+body{font-family:sans-serif;background:#111;color:#eee}
+button,input{margin:4px;padding:8px;font-size:16px}
+table{border-collapse:collapse;width:100%;margin-top:20px}
+td,th{border:1px solid #444;padding:6px;text-align:center}
+.ok{color:#0f0}.fail{color:#f33}
+</style>
 </head>
 <body>
 
-    <h1>Gym Track</h1>
-    <div id="status">Disconnected</div>
-    
-    <div class="box" id="connectBox">
-        <button onclick="connectBLE()" class="btn-blue">CONNECT DEVICE</button>
-        <p style="font-size:12px; color:#555; margin-top:10px;">Ensure Bluetooth is ON & Device Unpaired</p>
-    </div>
+<h2>GymTrack</h2>
 
-    <div id="mainPanel" style="display:none;">
-        
-        <div class="box">
-            <div id="batVal">--%</div>
-            <div style="font-size:12px; color:#aaa; margin-top:10px; letter-spacing: 1px;">VALID REPS</div>
-            <div id="liveData">0</div>
-            
-            <div class="row">
-                <button onclick="send('S')" class="btn-green half">▶ START SET</button>
-                <button onclick="send('E')" class="btn-red half">⏹ FINISH</button>
-            </div>
-        </div>
+<button onclick="connect()">CONNECT</button>
+<button onclick="cmd('MODE_ROT')">ROT</button>
+<button onclick="cmd('MODE_LIN')">LIN</button>
+<button onclick="cmd('CAL_MIN')">CAL MIN</button>
+<button onclick="cmd('CAL_MAX')">CAL MAX</button>
+<button onclick="cmd('START_SET')">START</button>
+<button onclick="cmd('STOP_SET')">STOP</button>
 
-        <div class="box">
-            <h3 style="margin-top:0; font-size:16px; color:#ddd;">Setup</h3>
-            
-            <div style="background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                <button onclick="send('T')" class="btn-orange" style="margin:0;">⚖️ TARE (RESET POS)</button>
-                <div id="driftDisplay" class="drift-val">Live: --</div>
-            </div>
+<br><br>
+<input id="code" placeholder="exercise code">
+<button onclick="importCode()">IMPORT</button>
+<div>EXPORT: <span id="export">---</span></div>
 
-            <span class="label">Exercise Code</span>
-            <input type="text" id="codeIn" placeholder="Axxxx / Lxxxx">
-            <button onclick="loadCode()" class="btn-purple" style="margin-top:10px;">LOAD CODE</button>
-            <hr>
-            
-            <span class="label">New Calibration</span>
-            <div style="margin-bottom:15px;">
-                <span class="label" style="color:#03dac6;">Angle Mode (Machines)</span>
-                <div class="row">
-                    <button onclick="send('C')" class="half" style="background:#333">1. Start (Rest)</button>
-                    <button onclick="send('c')" class="half" style="background:#333">2. Stop (Peak)</button>
-                </div>
-            </div>
-            <div>
-                <span class="label" style="color:#03dac6;">Linear Mode (Cables)</span>
-                <div class="row">
-                    <button onclick="send('P')" class="half" style="background:#333">1. Start (Bottom)</button>
-                    <button onclick="send('p')" class="half" style="background:#333">2. Stop (Top)</button>
-                </div>
-            </div>
-        </div>
+<p id="status">DISCONNECTED</p>
 
-        <div class="box">
-            <h3 style="margin-top:0; font-size:16px; color:#ddd;">History</h3>
-            <table id="historyTable">
-                <thead><tr><th>#</th><th>ROM</th><th>Tempo</th><th>State</th></tr></thead>
-                <tbody id="histBody"></tbody>
-            </table>
-        </div>
+<table>
+<tr><th>Rep</th><th>Status</th><th>Range%</th><th>Conc</th><th>Ecc</th></tr>
+<tbody id="rows"></tbody>
+</table>
 
-        <button onclick="rebootDevice()" class="btn-danger-zone">⚠️ REBOOT SYSTEM</button>
-        <div style="height: 50px;"></div>
-    </div>
+<script>
+let cmdChar,statusChar,repChar,exerciseChar;
 
-    <script>
-        // UUIDs matching v6.8 Firmware
-        const sUUID = "12345678-1234-1234-1234-123456789012";
-        const cCmd = "87654321-4321-4321-4321-210987654321";
-        const cData = "abcdef01-1234-5678-1234-56789abcdef0";
-        
-        let dev, srv, chCmd;
-        let wakeLock = null;
-        let currentMode = "A"; // Tracks current mode for display units (Angle vs Linear)
+async function connect(){
+  const dev=await navigator.bluetooth.requestDevice({
+    filters:[{name:'GymTrack'}],
+    optionalServices:['1234']
+  });
+  const srv=await dev.gatt.connect();
+  const svc=await srv.getPrimaryService('1234');
 
-        async function connectBLE() {
-            try {
-                // Filters match both "GymCounter" and potential renamed devices
-                dev = await navigator.bluetooth.requestDevice({ 
-                    filters: [{ namePrefix: 'Gym' }], 
-                    optionalServices: [sUUID] 
-                });
-                
-                dev.addEventListener('gattserverdisconnected', onDisconnect);
-                srv = await dev.gatt.connect();
-                const svc = await srv.getPrimaryService(sUUID);
-                
-                chCmd = await svc.getCharacteristic(cCmd);
-                const chData = await svc.getCharacteristic(cData);
-                
-                await chData.startNotifications();
-                chData.addEventListener('characteristicvaluechanged', handleData);
-                
-                document.getElementById("status").innerText = "🟢 CONNECTED";
-                document.getElementById("connectBox").style.display = "none";
-                document.getElementById("mainPanel").style.display = "block";
-                
-                // Request battery level on connect
-                setTimeout(() => send('B'), 500);
-                
-                // Keep screen awake if supported
-                if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+  cmdChar=await svc.getCharacteristic('1235');
+  statusChar=await svc.getCharacteristic('1236');
+  repChar=await svc.getCharacteristic('1237');
+  exerciseChar=await svc.getCharacteristic('1238');
 
-            } catch (e) { 
-                alert("Connection failed: " + e + "\n\nTip: Unpair from system Bluetooth settings first!"); 
-            }
-        }
+  await statusChar.startNotifications();
+  await repChar.startNotifications();
 
-        function onDisconnect() {
-            document.getElementById("status").innerText = "🔴 DISCONNECTED";
-            document.getElementById("connectBox").style.display = "block";
-            document.getElementById("mainPanel").style.display = "none";
-            wakeLock = null;
-        }
+  statusChar.oncharacteristicvaluechanged=e=>{
+    const d=JSON.parse(new TextDecoder().decode(e.target.value));
+    status.innerText=`Idle | Pos ${d.pos} | Batt ${d.battery}%`;
+  };
 
-        async function send(cmd) { 
-            if(chCmd) await chCmd.writeValue(new TextEncoder().encode(cmd));
-            // Automatically switch UI mode based on command sent
-            if(cmd === 'C') currentMode = "A";
-            if(cmd === 'P') currentMode = "L";
-        }
+  repChar.oncharacteristicvaluechanged=e=>{
+    const d=JSON.parse(new TextDecoder().decode(e.target.value));
+    rows.innerHTML+=`<tr>
+      <td>${d.rep}</td>
+      <td class="${d.valid?'ok':'fail'}">${d.valid?'OK':'FAIL'}</td>
+      <td>${Math.round(d.range*100)}</td>
+      <td>${d.valid?d.conc.toFixed(2):'-'}</td>
+      <td>${d.valid?d.ecc.toFixed(2):'-'}</td>
+    </tr>`;
+  };
 
-        function handleData(e) {
-            let v = new TextDecoder().decode(e.target.value);
-            
-            // 1. CALIBRATION CODE RECEIVED
-            if (v.startsWith("CODE:")) { 
-                let code = v.split(":")[1];
-                document.getElementById("codeIn").value = code; 
-                if(code.startsWith("L")) currentMode = "L"; else currentMode = "A";
-                alert("✅ Calibration Saved!\nCode: " + code);
-            }
-            
-            // 2. LIVE DATA STREAM (During Setup/Rest)
-            else if (v.startsWith("LIVE:")) {
-                let val = parseFloat(v.split(":")[1]);
-                let el = document.getElementById("driftDisplay");
-                // "m" for Linear, "°" for Angle
-                let unit = (currentMode === "L") ? " m" : "°";
-                el.innerText = "Pos: " + val.toFixed(2) + unit;
-            }
-            
-            // 3. LIVE REP UPDATE (During Set)
-            // C++ Format: "validReps: maxRepPct% | t1 / t2" -> "5: 98% | 1.2s / 1.0s"
-            else if (v.includes("%") && !v.includes("BAT") && !v.includes("REP:")) { 
-                let parts = v.split(":");
-                let validCount = parts[0]; 
-                if(validCount) document.getElementById("liveData").innerText = validCount;
-            }
-            
-            // 4. BATTERY LEVEL
-            else if (v.startsWith("BAT:")) {
-                let pct = v.split(":")[1];
-                document.getElementById("batVal").innerText = pct + "%";
-            }
-            
-            // 5. TARE CONFIRMATION
-            else if (v === "TARE_OK") {
-                let btn = document.querySelector(".btn-orange");
-                let orig = btn.innerText;
-                btn.innerText = "✅ ZERO OK";
-                setTimeout(() => btn.innerText = orig, 1000);
-            }
-            
-            // 6. SESSION HISTORY (After pressing Finish)
-            // C++ Format: "REP:Attempts/Valid;pct|t1|t2,pct|t1|t2,..."
-            else if (v.startsWith("REP:")) {
-                let tbody = document.getElementById("histBody");
-                tbody.innerHTML = "";
-                
-                let parts = v.split(";");
-                let stats = parts[0].split("REP:")[1].split("/"); // e.g., "12/10"
-                
-                // Update the main display with final Valid count
-                document.getElementById("liveData").innerText = stats[1]; 
+  export.innerText=new TextDecoder().decode(await exerciseChar.readValue());
+  status.innerText="CONNECTED";
+}
 
-                // Parse individual reps
-                let reps = parts[1].split(",");
-                reps.forEach((r,i) => {
-                    if(r === "") return;
-                    let d = r.split("|"); 
-                    let pct = parseFloat(d[0]);
-                    let t1 = d[1] ? d[1] : "-";
-                    let t2 = d[2] ? d[2] : "-";
-                    
-                    // Logic from C++: Valid if >= 80%
-                    let valid = pct >= 80;
-                    
-                    tbody.innerHTML += `
-                    <tr>
-                        <td>${i+1}</td>
-                        <td style="font-weight:bold; color:${valid ? '#fff' : '#ff5252'}">${pct}%</td>
-                        <td class="tempo-text">${t1}s / ${t2}s</td>
-                        <td class="${valid?'valid':'invalid'}">${valid?'OK':'NO'}</td>
-                    </tr>`;
-                });
-            }
-        }
-
-        async function loadCode() { 
-            let c = document.getElementById("codeIn").value.trim().toUpperCase();
-            if(c.length > 4) { 
-                if(c.startsWith("L")) currentMode = "L"; else currentMode = "A";
-                await send("LOAD:"+c); 
-                alert("Code " + c + " loaded!");
-            } 
-            else alert("Invalid code (Format: Axxxx or Lxxxx)");
-        }
-
-        async function rebootDevice() {
-            if(confirm("⚠️ REBOOT DEVICE?")) { await send('R'); }
-        }
-    </script>
+function cmd(c){ cmdChar.writeValue(new TextEncoder().encode(c)); }
+function importCode(){ cmd("IMPORT:"+code.value); }
+</script>
 </body>
 </html>
