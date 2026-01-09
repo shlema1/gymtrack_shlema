@@ -2,80 +2,85 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title>GymTrack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack BLE</title>
 <style>
-body{font-family:sans-serif;background:#111;color:#eee}
-button,input{margin:4px;padding:8px;font-size:16px}
-table{border-collapse:collapse;width:100%;margin-top:20px}
-td,th{border:1px solid #444;padding:6px;text-align:center}
-.ok{color:#0f0}.fail{color:#f33}
+body{font-family:sans-serif;background:#111;color:#eee;text-align:center;padding:20px;}
+button{margin:10px;padding:15px 30px;font-size:18px;cursor:pointer;background:#333;color:white;border:1px solid #555;border-radius:5px;}
+button:active{background:#555;}
+#status{font-weight:bold;color:#f90;margin:20px;}
+.val{font-size:2em;font-family:monospace;color:#0f0;}
 </style>
 </head>
 <body>
 
-<h2>GymTrack</h2>
+<h2>GymTrack BLE Control</h2>
 
-<button onclick="connect()">CONNECT</button>
-<button onclick="cmd('MODE_ROT')">ROT</button>
-<button onclick="cmd('MODE_LIN')">LIN</button>
-<button onclick="cmd('CAL_MIN')">CAL MIN</button>
-<button onclick="cmd('CAL_MAX')">CAL MAX</button>
-<button onclick="cmd('START_SET')">START</button>
-<button onclick="cmd('STOP_SET')">STOP</button>
+<button id="btnConnect" onclick="connect()">🔌 PŘIPOJIT</button>
+<br>
+<button onclick="cmd('TARE')">⚖️ TARE</button>
 
-<br><br>
-<input id="code" placeholder="exercise code">
-<button onclick="importCode()">IMPORT</button>
-<div>EXPORT: <span id="export">---</span></div>
-
-<p id="status">DISCONNECTED</p>
-
-<table>
-<tr><th>Rep</th><th>Status</th><th>Range%</th><th>Conc</th><th>Ecc</th></tr>
-<tbody id="rows"></tbody>
-</table>
+<p id="status">Odpojeno</p>
+<div class="val" id="angleVal">--°</div>
 
 <script>
-let cmdChar,statusChar,repChar,exerciseChar;
+// Stejná UUID jako ve Firmware
+const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
 
-async function connect(){
-  const dev=await navigator.bluetooth.requestDevice({
-    filters:[{name:'GymTrack'}],
-    optionalServices:['1234']
-  });
-  const srv=await dev.gatt.connect();
-  const svc=await srv.getPrimaryService('1234');
+let device, cmdChar;
 
-  cmdChar=await svc.getCharacteristic('1235');
-  statusChar=await svc.getCharacteristic('1236');
-  repChar=await svc.getCharacteristic('1237');
-  exerciseChar=await svc.getCharacteristic('1238');
+async function connect() {
+  try {
+    document.getElementById('status').innerText = "Hledám zařízení...";
+    
+    // ZMĚNA: Hledáme podle Services, ne podle jména. To je spolehlivější.
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }] 
+    });
 
-  await statusChar.startNotifications();
-  await repChar.startNotifications();
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    
+    cmdChar = await service.getCharacteristic(CHAR_CMD);
+    const statusChar = await service.getCharacteristic(CHAR_STATUS);
 
-  statusChar.oncharacteristicvaluechanged=e=>{
-    const d=JSON.parse(new TextDecoder().decode(e.target.value));
-    status.innerText=`Idle | Pos ${d.pos} | Batt ${d.battery}%`;
-  };
+    // Zapnout notifikace
+    await statusChar.startNotifications();
+    statusChar.addEventListener('characteristicvaluechanged', handleStatus);
 
-  repChar.oncharacteristicvaluechanged=e=>{
-    const d=JSON.parse(new TextDecoder().decode(e.target.value));
-    rows.innerHTML+=`<tr>
-      <td>${d.rep}</td>
-      <td class="${d.valid?'ok':'fail'}">${d.valid?'OK':'FAIL'}</td>
-      <td>${Math.round(d.range*100)}</td>
-      <td>${d.valid?d.conc.toFixed(2):'-'}</td>
-      <td>${d.valid?d.ecc.toFixed(2):'-'}</td>
-    </tr>`;
-  };
+    document.getElementById('status').innerText = "PŘIPOJENO!";
+    document.getElementById('status').style.color = "#0f0";
+    document.getElementById('btnConnect').style.display = 'none';
 
-  export.innerText=new TextDecoder().decode(await exerciseChar.readValue());
-  status.innerText="CONNECTED";
+    device.addEventListener('gattserverdisconnected', () => {
+       document.getElementById('status').innerText = "Odpojeno";
+       document.getElementById('status').style.color = "#f33";
+       document.getElementById('btnConnect').style.display = 'inline-block';
+    });
+
+  } catch (error) {
+    console.error(error);
+    document.getElementById('status').innerText = "Chyba: " + error;
+  }
 }
 
-function cmd(c){ cmdChar.writeValue(new TextEncoder().encode(c)); }
-function importCode(){ cmd("IMPORT:"+code.value); }
+function handleStatus(event) {
+  const value = new TextDecoder().decode(event.target.value);
+  try {
+    const json = JSON.parse(value);
+    document.getElementById('angleVal').innerText = json.angle.toFixed(1) + "°";
+  } catch(e) { console.log("JSON Error", value); }
+}
+
+async function cmd(c) {
+  if (!cmdChar) return;
+  try {
+    await cmdChar.writeValue(new TextEncoder().encode(c));
+    console.log("Sent:", c);
+  } catch (e) { console.error(e); }
+}
 </script>
 </body>
 </html>
