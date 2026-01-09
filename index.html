@@ -15,8 +15,7 @@
     /* Header & Status */
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .status-badge { font-size: 0.9rem; font-weight: bold; color: #888; }
-    .bat-icon { margin-left: 5px; }
-
+    
     /* Buttons */
     button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; color: #fff; transition: 0.2s; margin-bottom: 8px; }
     button:active { transform: scale(0.97); }
@@ -28,23 +27,18 @@
     .btn-mode { background: #222; color: #888; border: 1px solid #333; }
     .btn-mode.active { background: #ff9800; color: #000; border-color: #ff9800; }
     
-    /* Stats Display */
+    /* Stats */
     .stat-row { display: flex; justify-content: space-around; align-items: center; }
-    .stat-item { flex: 1; }
-    .stat-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
     .big-num { font-size: 4.5rem; font-weight: 800; color: var(--primary); margin: 0; line-height: 1; }
     .med-num { font-size: 2rem; font-weight: bold; color: #fff; }
-
-    /* Feedback animation */
-    @keyframes flashGreen { 0% { background-color: var(--primary); } 100% { background-color: #333; } }
-    .saved { animation: flashGreen 0.5s ease-out; }
-
+    
     /* Table */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
     td, th { padding: 8px; border-bottom: 1px solid #333; text-align: center; }
     .valid { color: var(--primary); } .invalid { color: #ff5252; }
     
-    input { width: 70%; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; }
+    /* Input */
+    input { width: 65%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; font-family: monospace; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -56,7 +50,7 @@
             <div style="font-weight:900; letter-spacing:1px">GYMTRACK</div>
             <div class="status-badge">
                 <span id="statusText">Disconnected</span>
-                <span class="bat-icon">🔋 <span id="batVal">--</span>%</span>
+                <span>🔋 <span id="batVal">--</span>%</span>
             </div>
         </div>
         <button class="btn-connect" id="btnConnect" onclick="connect()">CONNECT DEVICE</button>
@@ -66,19 +60,18 @@
         
         <div class="card">
             <div class="stat-row">
-                <div class="stat-item">
-                    <div class="stat-label">REPS</div>
+                <div>
+                    <div style="font-size:0.8rem; color:#aaa">REPS</div>
                     <div class="big-num" id="repVal">0</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">POSITION</div>
+                <div>
+                    <div style="font-size:0.8rem; color:#aaa">POSITION</div>
                     <div class="med-num" id="posVal">0%</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="stat-label" style="margin-bottom:10px">Session Control</div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
                 <button class="btn-start" onclick="cmd('START_SET')">▶ START</button>
                 <button class="btn-stop" onclick="cmd('STOP_SET')">⏹ STOP</button>
@@ -86,7 +79,7 @@
         </div>
 
         <div class="card">
-            <div class="stat-label" style="margin-bottom:10px">Settings & Calibration</div>
+            <div style="font-size:0.8rem; color:#aaa; margin-bottom:10px">MODE & CALIBRATION</div>
             
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px">
                 <button id="btnModeRot" class="btn-mode active" onclick="setMode('ROT')">ROTATION</button>
@@ -94,23 +87,24 @@
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                <button id="btnMin" class="btn-cal" onclick="calibrate('CAL_MIN', 'btnMin')">1. SET BOTTOM</button>
-                <button id="btnMax" class="btn-cal" onclick="calibrate('CAL_MAX', 'btnMax')">2. SET TOP</button>
+                <button id="btnMin" class="btn-cal" onclick="calibrate('CAL_MIN', 'btnMin')">1. BOTTOM</button>
+                <button id="btnMax" class="btn-cal" onclick="calibrate('CAL_MAX', 'btnMax')">2. TOP</button>
             </div>
 
-            <div style="margin-top:15px; border-top:1px solid #333; padding-top:10px">
-                <input id="codeIn" placeholder="Paste code here...">
-                <button style="width:25%; font-size:0.8rem" class="btn-cal" onclick="importCode()">IMPORT</button>
-                <div style="font-size:0.8rem; color:#888; margin-top:5px">
-                    EXPORT: <span id="exportCode" style="font-family:monospace; color:#fff">---</span>
+            <div style="margin-top:15px; border-top:1px solid #333; padding-top:15px">
+                <div style="display:flex; justify-content:space-between;">
+                    <input id="codeIn" placeholder="Code appears here...">
+                    <button style="width:30%; padding:10px; margin:0;" class="btn-cal" onclick="importCode()">IMPORT</button>
+                </div>
+                <div style="font-size:0.75rem; color:#666; margin-top:5px; text-align:left;">
+                    *Code is auto-filled after calibration
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="stat-label">Rep History</div>
             <table>
-                <thead><tr><th>#</th><th>Status</th><th>Range</th><th>Time (Up/Down)</th></tr></thead>
+                <thead><tr><th>#</th><th>Valid</th><th>Range</th><th>Time (Con/Ecc)</th></tr></thead>
                 <tbody id="logBody"></tbody>
             </table>
         </div>
@@ -119,14 +113,14 @@
 </div>
 
 <script>
-// UUIDs (Must match C++)
+// UUIDs
 const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
 const CHAR_REP     = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
 const CHAR_EX      = "70308365-5381-4209-9150-14966601f01c";
 
-let cmdChar, exChar;
+let cmdChar;
 
 async function connect(){
     try {
@@ -137,110 +131,75 @@ async function connect(){
         const svc = await srv.getPrimaryService(SERVICE_UUID);
         
         cmdChar = await svc.getCharacteristic(CHAR_CMD);
-        exChar = await svc.getCharacteristic(CHAR_EX); // For export code
 
-        // Status (Battery, Position)
+        // 1. Status (Pos, Bat)
         const stChar = await svc.getCharacteristic(CHAR_STATUS);
         await stChar.startNotifications();
-        stChar.addEventListener('characteristicvaluechanged', handleStatus);
-
-        // Reps
-        const repChar = await svc.getCharacteristic(CHAR_REP);
-        await repChar.startNotifications();
-        repChar.addEventListener('characteristicvaluechanged', handleRep);
-
-        // UI Updates
-        document.getElementById('btnConnect').style.display = 'none';
-        document.getElementById('mainPanel').style.display = 'block';
-        updateStatus("Connected", "#00E676");
-
-        dev.addEventListener('gattserverdisconnected', () => {
-            updateStatus("Disconnected", "#888");
-            document.getElementById('btnConnect').style.display = 'block';
-            document.getElementById('mainPanel').style.display = 'none';
+        stChar.addEventListener('characteristicvaluechanged', (e) => {
+            const d = JSON.parse(new TextDecoder().decode(e.target.value));
+            document.getElementById('posVal').innerText = Math.round(d.pos * 100) + "%";
+            const bat = document.getElementById('batVal');
+            bat.innerText = d.bat;
+            bat.style.color = d.bat < 20 ? '#ff5252' : '#fff';
         });
 
-    } catch(e) { alert("Error: " + e); }
+        // 2. Reps (Count)
+        const repChar = await svc.getCharacteristic(CHAR_REP);
+        await repChar.startNotifications();
+        repChar.addEventListener('characteristicvaluechanged', (e) => {
+            const d = JSON.parse(new TextDecoder().decode(e.target.value));
+            document.getElementById('repVal').innerText = d.rep;
+            const row = `<tr>
+                <td>${d.rep}</td>
+                <td class="${d.valid?'valid':'invalid'}">${d.valid?'OK':'FAIL'}</td>
+                <td>${Math.round(d.range*100)}%</td>
+                <td>${d.conc.toFixed(1)} / ${d.ecc.toFixed(1)}</td>
+            </tr>`;
+            document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
+        });
+
+        // 3. Exercise Code (Auto-Fill)
+        const exChar = await svc.getCharacteristic(CHAR_EX);
+        await exChar.startNotifications();
+        exChar.addEventListener('characteristicvaluechanged', (e) => {
+            const code = new TextDecoder().decode(e.target.value);
+            // AUTO FILL INPUT
+            const input = document.getElementById('codeIn');
+            input.value = code;
+            
+            // Visual flash effect on input
+            input.style.borderColor = "#00E676";
+            setTimeout(() => { input.style.borderColor = "#444"; }, 1000);
+        });
+
+        // UI Ready
+        document.getElementById('btnConnect').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+        document.getElementById('statusText').innerText = "Connected";
+        document.getElementById('statusText').style.color = "#00E676";
+
+    } catch(e) { alert("Connection Error: " + e); }
 }
 
-// Handle updates (Pos, Battery)
-function handleStatus(e){
-    const json = new TextDecoder().decode(e.target.value);
-    try {
-        const d = JSON.parse(json);
-        // {"pos":0.5, "raw":100, "bat":80}
-        document.getElementById('posVal').innerText = Math.round(d.pos * 100) + "%";
-        
-        // Update Battery
-        const batEl = document.getElementById('batVal');
-        batEl.innerText = d.bat;
-        batEl.style.color = d.bat < 20 ? "#ff5252" : "#fff";
-
-    } catch(e) { console.warn("JSON Error", json); }
-}
-
-// Handle Repetitions
-async function handleRep(e){
-    const json = new TextDecoder().decode(e.target.value);
-    try {
-        const d = JSON.parse(json);
-        // {"rep":1,"valid":true,"range":0.9,"conc":1.0,"ecc":2.0}
-        
-        // Update BIG number
-        document.getElementById('repVal').innerText = d.rep;
-        
-        // Add to table
-        const row = `<tr>
-            <td>${d.rep}</td>
-            <td class="${d.valid?'valid':'invalid'}">${d.valid?'OK':'FAIL'}</td>
-            <td>${Math.round(d.range*100)}%</td>
-            <td>${d.conc.toFixed(1)}s / ${d.ecc.toFixed(1)}s</td>
-        </tr>`;
-        document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
-
-        // Fetch new export code automatically after a set/rep if calibration changed
-        if(exChar) {
-            const val = await exChar.readValue();
-            document.getElementById('exportCode').innerText = new TextDecoder().decode(val);
-        }
-
-    } catch(e) { console.warn("Rep Error", json); }
-}
-
-function updateStatus(text, color) {
-    const el = document.getElementById('statusText');
-    el.innerText = text;
-    el.style.color = color;
-}
-
-// Helper to send BLE commands
 async function cmd(c){
     if(cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c));
 }
 
-// Mode Selection Logic
 function setMode(mode) {
     cmd(mode === 'ROT' ? 'MODE_ROT' : 'MODE_LIN');
-    
-    // Toggle UI buttons
     document.getElementById('btnModeRot').className = mode === 'ROT' ? 'btn-mode active' : 'btn-mode';
     document.getElementById('btnModeLin').className = mode === 'LIN' ? 'btn-mode active' : 'btn-mode';
 }
 
-// Calibration with visual feedback
 async function calibrate(command, btnId) {
     await cmd(command);
-    
-    // Visual Flash effect
     const btn = document.getElementById(btnId);
-    const originalText = btn.innerText;
-    
+    const oldText = btn.innerText;
     btn.innerText = "SAVED!";
     btn.style.background = "#00E676";
     btn.style.color = "#000";
-    
     setTimeout(() => {
-        btn.innerText = originalText;
+        btn.innerText = oldText;
         btn.style.background = "#333";
         btn.style.color = "#fff";
     }, 1000);
@@ -248,6 +207,10 @@ async function calibrate(command, btnId) {
 
 function importCode(){
     cmd("IMPORT:" + document.getElementById('codeIn').value);
+    // Feedback
+    const btn = document.querySelector('button[onclick="importCode()"]');
+    btn.innerText = "OK";
+    setTimeout(() => btn.innerText = "IMPORT", 1000);
 }
 </script>
 </body>
