@@ -1,162 +1,254 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>GymTrack Ultimate</title>
+<title>GymTrack Pro</title>
 <style>
-    :root { --primary: #00E676; --bg: #121212; --card: #1e1e1e; --text: #eee; }
-    body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; text-align: center; }
+    :root { --primary: #00E676; --bg: #121212; --card: #1e1e1e; --text: #eee; --accent: #2979ff; }
+    body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; text-align: center; }
     
-    /* Grid Layout */
-    .grid { display: grid; gap: 10px; max-width: 600px; margin: auto; }
+    /* Layout */
+    .grid { display: grid; gap: 15px; max-width: 500px; margin: auto; }
+    .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
     
-    /* Cards */
-    .card { background: var(--card); padding: 15px; border-radius: 12px; }
-    h2 { margin: 0 0 10px 0; font-size: 1rem; color: #888; text-transform: uppercase; }
-    
+    /* Header & Status */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .status-badge { font-size: 0.9rem; font-weight: bold; color: #888; }
+    .bat-icon { margin-left: 5px; }
+
     /* Buttons */
-    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 5px; color: #fff; background: #333; }
-    button.connect { background: #2979ff; }
-    button.start { background: var(--primary); color: #000; }
-    button.stop { background: #f44336; }
-    button.cal { background: #ff9800; color: #000; }
+    button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; color: #fff; transition: 0.2s; margin-bottom: 8px; }
+    button:active { transform: scale(0.97); }
     
-    /* Stats */
-    .big-val { font-size: 3rem; font-weight: bold; color: var(--primary); }
-    .row { display: flex; justify-content: space-between; align-items: center; }
+    .btn-connect { background: var(--accent); }
+    .btn-start { background: var(--primary); color: #000; font-size: 1.2rem; }
+    .btn-stop { background: #ff5252; }
+    .btn-cal { background: #333; border: 1px solid #555; }
+    .btn-mode { background: #222; color: #888; border: 1px solid #333; }
+    .btn-mode.active { background: #ff9800; color: #000; border-color: #ff9800; }
     
+    /* Stats Display */
+    .stat-row { display: flex; justify-content: space-around; align-items: center; }
+    .stat-item { flex: 1; }
+    .stat-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    .big-num { font-size: 4.5rem; font-weight: 800; color: var(--primary); margin: 0; line-height: 1; }
+    .med-num { font-size: 2rem; font-weight: bold; color: #fff; }
+
+    /* Feedback animation */
+    @keyframes flashGreen { 0% { background-color: var(--primary); } 100% { background-color: #333; } }
+    .saved { animation: flashGreen 0.5s ease-out; }
+
     /* Table */
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-    td, th { padding: 6px; border-bottom: 1px solid #333; text-align: center; }
-    .ok { color: var(--primary); } .fail { color: #f44336; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    td, th { padding: 8px; border-bottom: 1px solid #333; text-align: center; }
+    .valid { color: var(--primary); } .invalid { color: #ff5252; }
     
-    input { width: 70%; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; }
+    input { width: 70%; padding: 10px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; }
 </style>
 </head>
 <body>
 
 <div class="grid">
-    <div class="card row">
-        <div style="font-weight:bold">GYMTRACK</div>
-        <div id="status">Odpojeno</div>
-    </div>
     
-    <button class="connect" id="btnConnect" onclick="connect()">PŘIPOJIT</button>
-
-    <div class="card" id="mainPanel" style="display:none">
-        <div class="row">
-            <div>
-                <h2>Opakování</h2>
-                <div class="big-val" id="repVal">0</div>
-            </div>
-            <div>
-                <h2>Poloha</h2>
-                <div class="big-val" id="posVal">0%</div>
+    <div class="card">
+        <div class="header">
+            <div style="font-weight:900; letter-spacing:1px">GYMTRACK</div>
+            <div class="status-badge">
+                <span id="statusText">Disconnected</span>
+                <span class="bat-icon">🔋 <span id="batVal">--</span>%</span>
             </div>
         </div>
+        <button class="btn-connect" id="btnConnect" onclick="connect()">CONNECT DEVICE</button>
+    </div>
+
+    <div id="mainPanel" style="display:none">
         
-        <div style="margin-top:15px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <button class="start" onclick="cmd('START_SET')">START</button>
-            <button class="stop" onclick="cmd('STOP_SET')">STOP</button>
+        <div class="card">
+            <div class="stat-row">
+                <div class="stat-item">
+                    <div class="stat-label">REPS</div>
+                    <div class="big-num" id="repVal">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">POSITION</div>
+                    <div class="med-num" id="posVal">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-label" style="margin-bottom:10px">Session Control</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <button class="btn-start" onclick="cmd('START_SET')">▶ START</button>
+                <button class="btn-stop" onclick="cmd('STOP_SET')">⏹ STOP</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-label" style="margin-bottom:10px">Settings & Calibration</div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px">
+                <button id="btnModeRot" class="btn-mode active" onclick="setMode('ROT')">ROTATION</button>
+                <button id="btnModeLin" class="btn-mode" onclick="setMode('LIN')">LINEAR</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <button id="btnMin" class="btn-cal" onclick="calibrate('CAL_MIN', 'btnMin')">1. SET BOTTOM</button>
+                <button id="btnMax" class="btn-cal" onclick="calibrate('CAL_MAX', 'btnMax')">2. SET TOP</button>
+            </div>
+
+            <div style="margin-top:15px; border-top:1px solid #333; padding-top:10px">
+                <input id="codeIn" placeholder="Paste code here...">
+                <button style="width:25%; font-size:0.8rem" class="btn-cal" onclick="importCode()">IMPORT</button>
+                <div style="font-size:0.8rem; color:#888; margin-top:5px">
+                    EXPORT: <span id="exportCode" style="font-family:monospace; color:#fff">---</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="stat-label">Rep History</div>
+            <table>
+                <thead><tr><th>#</th><th>Status</th><th>Range</th><th>Time (Up/Down)</th></tr></thead>
+                <tbody id="logBody"></tbody>
+            </table>
         </div>
     </div>
 
-    <div class="card" id="calPanel" style="display:none">
-        <h2>Nastavení Cviku</h2>
-        
-        <div style="margin-bottom:10px">
-            <button onclick="cmd('MODE_ROT')">MÓD: ROTACE (Biceps...)</button>
-            <button onclick="cmd('MODE_LIN')">MÓD: LINEÁRNÍ (Bench...)</button>
-        </div>
-        
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <button class="cal" onclick="cmd('CAL_MIN')">1. DOLNÍ BOD</button>
-            <button class="cal" onclick="cmd('CAL_MAX')">2. HORNÍ BOD</button>
-        </div>
-        
-        <div style="margin-top:15px; border-top:1px solid #333; padding-top:10px;">
-            <input id="codeIn" placeholder="Vlož kód cviku...">
-            <button style="width:25%" onclick="importCode()">IMPORT</button>
-            <div style="margin-top:5px; font-size:0.8rem; color:#888;">
-                EXPORT KÓD: <span id="exportCode" style="color:#fff; font-family:monospace">---</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" id="logPanel" style="display:none">
-        <h2>Historie Série</h2>
-        <table>
-            <thead><tr><th>#</th><th>Stav</th><th>Rozsah</th><th>Tempo (Con/Ecc)</th></tr></thead>
-            <tbody id="logBody"></tbody>
-        </table>
-    </div>
 </div>
 
 <script>
-const SERVICE = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const CHAR_CMD = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-const CHAR_STATUS = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
-const CHAR_REP = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
-const CHAR_EX = "70308365-5381-4209-9150-14966601f01c";
+// UUIDs (Must match C++)
+const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+const CHAR_REP     = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
+const CHAR_EX      = "70308365-5381-4209-9150-14966601f01c";
 
 let cmdChar, exChar;
 
 async function connect(){
     try {
-        const dev = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}]});
+        const dev = await navigator.bluetooth.requestDevice({
+            filters:[{services:[SERVICE_UUID]}]
+        });
         const srv = await dev.gatt.connect();
-        const svc = await srv.getPrimaryService(SERVICE);
+        const svc = await srv.getPrimaryService(SERVICE_UUID);
         
         cmdChar = await svc.getCharacteristic(CHAR_CMD);
-        exChar = await svc.getCharacteristic(CHAR_EX);
-        
+        exChar = await svc.getCharacteristic(CHAR_EX); // For export code
+
+        // Status (Battery, Position)
         const stChar = await svc.getCharacteristic(CHAR_STATUS);
         await stChar.startNotifications();
         stChar.addEventListener('characteristicvaluechanged', handleStatus);
 
+        // Reps
         const repChar = await svc.getCharacteristic(CHAR_REP);
         await repChar.startNotifications();
         repChar.addEventListener('characteristicvaluechanged', handleRep);
 
-        document.getElementById('btnConnect').style.display='none';
-        document.getElementById('mainPanel').style.display='block';
-        document.getElementById('calPanel').style.display='block';
-        document.getElementById('logPanel').style.display='block';
-        document.getElementById('status').innerText = "Připojeno";
-        document.getElementById('status').style.color = "#0f0";
+        // UI Updates
+        document.getElementById('btnConnect').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+        updateStatus("Connected", "#00E676");
 
-    } catch(e) { alert(e); }
+        dev.addEventListener('gattserverdisconnected', () => {
+            updateStatus("Disconnected", "#888");
+            document.getElementById('btnConnect').style.display = 'block';
+            document.getElementById('mainPanel').style.display = 'none';
+        });
+
+    } catch(e) { alert("Error: " + e); }
 }
 
+// Handle updates (Pos, Battery)
 function handleStatus(e){
-    const d = JSON.parse(new TextDecoder().decode(e.target.value));
-    // {"pos":0.5, "raw":120, "bat":80}
-    document.getElementById('posVal').innerText = Math.round(d.pos*100) + "%";
+    const json = new TextDecoder().decode(e.target.value);
+    try {
+        const d = JSON.parse(json);
+        // {"pos":0.5, "raw":100, "bat":80}
+        document.getElementById('posVal').innerText = Math.round(d.pos * 100) + "%";
+        
+        // Update Battery
+        const batEl = document.getElementById('batVal');
+        batEl.innerText = d.bat;
+        batEl.style.color = d.bat < 20 ? "#ff5252" : "#fff";
+
+    } catch(e) { console.warn("JSON Error", json); }
 }
 
+// Handle Repetitions
 async function handleRep(e){
-    const d = JSON.parse(new TextDecoder().decode(e.target.value));
-    // {"rep":1,"valid":true,"range":0.9,"conc":1.2,"ecc":2.0}
-    
-    document.getElementById('repVal').innerText = d.rep;
-    
-    const row = `<tr>
-        <td>${d.rep}</td>
-        <td class="${d.valid?'ok':'fail'}">${d.valid?'OK':'FAIL'}</td>
-        <td>${Math.round(d.range*100)}%</td>
-        <td>${d.conc.toFixed(1)}s / ${d.ecc.toFixed(1)}s</td>
-    </tr>`;
-    document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
+    const json = new TextDecoder().decode(e.target.value);
+    try {
+        const d = JSON.parse(json);
+        // {"rep":1,"valid":true,"range":0.9,"conc":1.0,"ecc":2.0}
+        
+        // Update BIG number
+        document.getElementById('repVal').innerText = d.rep;
+        
+        // Add to table
+        const row = `<tr>
+            <td>${d.rep}</td>
+            <td class="${d.valid?'valid':'invalid'}">${d.valid?'OK':'FAIL'}</td>
+            <td>${Math.round(d.range*100)}%</td>
+            <td>${d.conc.toFixed(1)}s / ${d.ecc.toFixed(1)}s</td>
+        </tr>`;
+        document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
 
-    // Po každém repu aktualizovat export kód
-    const code = new TextDecoder().decode(await exChar.readValue());
-    document.getElementById('exportCode').innerText = code;
+        // Fetch new export code automatically after a set/rep if calibration changed
+        if(exChar) {
+            const val = await exChar.readValue();
+            document.getElementById('exportCode').innerText = new TextDecoder().decode(val);
+        }
+
+    } catch(e) { console.warn("Rep Error", json); }
 }
 
-function cmd(c){ if(cmdChar) cmdChar.writeValue(new TextEncoder().encode(c)); }
-function importCode(){ cmd("IMPORT:"+document.getElementById('codeIn').value); }
-</script>
+function updateStatus(text, color) {
+    const el = document.getElementById('statusText');
+    el.innerText = text;
+    el.style.color = color;
+}
 
+// Helper to send BLE commands
+async function cmd(c){
+    if(cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c));
+}
+
+// Mode Selection Logic
+function setMode(mode) {
+    cmd(mode === 'ROT' ? 'MODE_ROT' : 'MODE_LIN');
+    
+    // Toggle UI buttons
+    document.getElementById('btnModeRot').className = mode === 'ROT' ? 'btn-mode active' : 'btn-mode';
+    document.getElementById('btnModeLin').className = mode === 'LIN' ? 'btn-mode active' : 'btn-mode';
+}
+
+// Calibration with visual feedback
+async function calibrate(command, btnId) {
+    await cmd(command);
+    
+    // Visual Flash effect
+    const btn = document.getElementById(btnId);
+    const originalText = btn.innerText;
+    
+    btn.innerText = "SAVED!";
+    btn.style.background = "#00E676";
+    btn.style.color = "#000";
+    
+    setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.background = "#333";
+        btn.style.color = "#fff";
+    }, 1000);
+}
+
+function importCode(){
+    cmd("IMPORT:" + document.getElementById('codeIn').value);
+}
+</script>
 </body>
 </html>
