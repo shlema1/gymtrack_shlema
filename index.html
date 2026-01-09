@@ -1,82 +1,196 @@
 <!DOCTYPE html>
-<html>
+<html lang="cs">
 <head>
-<meta charset="utf-8">
-<title>GymTrack</title>
-<style>
-body { font-family: sans-serif; }
-.failed { color: red; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GymTrack Pro</title>
+    <style>
+        :root { --primary: #00E676; --fail: #FF5252; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; padding: 20px; text-align: center; -webkit-font-smoothing: antialiased; }
+        
+        h1 { margin-bottom: 5px; font-weight: 300; letter-spacing: 2px; }
+        .status-bar { font-size: 0.9rem; color: #888; margin-bottom: 20px; display: flex; justify-content: space-between; padding: 0 10px; }
+
+        /* Hlavní tlačítko */
+        #btn-connect { background: #2979ff; width: 100%; padding: 15px; font-size: 1.2rem; border: none; border-radius: 12px; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(41, 121, 255, 0.4); }
+        
+        /* Dashboard (skrytý před připojením) */
+        #dashboard { display: none; flex-direction: column; gap: 15px; }
+
+        /* Karty */
+        .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .label { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Počítadlo */
+        .big-number { font-size: 5rem; font-weight: 700; color: var(--primary); margin: 0; line-height: 1; }
+        .sub-stats { display: flex; justify-content: space-around; margin-top: 15px; }
+        .stat-box span { display: block; font-size: 1.2rem; font-weight: bold; }
+
+        /* Ovládací panely */
+        .control-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; color: #fff; transition: 0.2s; }
+        button:active { transform: scale(0.96); }
+        
+        .btn-start { background: var(--primary); color: #000; }
+        .btn-stop { background: var(--fail); }
+        .btn-cal { background: #333; border: 1px solid #555; }
+        .btn-cal.active { background: #ff9800; color: #000; border-color: #ff9800; }
+
+        /* Tabulka historie */
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.9rem; }
+        th { text-align: left; color: #666; padding-bottom: 5px; border-bottom: 1px solid #333; }
+        td { padding: 8px 0; border-bottom: 1px solid #2a2a2a; }
+        .row-fail { color: var(--fail); }
+    </style>
 </head>
 <body>
 
-<h2>GymTrack</h2>
+    <h1>GYMTRACK</h1>
+    
+    <div class="status-bar">
+        <span id="status-text">Odpojeno</span>
+        <span>🔋 <span id="bat-val">--</span>%</span>
+    </div>
 
-<button onclick="connect()">Connect</button>
-<span id="bat"></span>
-<hr>
+    <button id="btn-connect" onclick="connect()">🔌 PŘIPOJIT ZAŘÍZENÍ</button>
 
-<h3>Kalibrace</h3>
-<button onclick="send('CAL_START')">Start kalibrace</button>
-<button onclick="send('CAL_END')">Konec kalibrace</button>
+    <div id="dashboard">
+        
+        <div class="card">
+            <div class="label">Opakování</div>
+            <div class="big-number" id="reps-val">0</div>
+            
+            <div class="sub-stats">
+                <div class="stat-box">
+                    <div class="label">Fail</div>
+                    <span id="fail-val" style="color:var(--fail)">0</span>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Tempo</div>
+                    <span id="tempo-val">0.0 / 0.0</span>
+                </div>
+            </div>
+        </div>
 
-<h3>Set</h3>
-<button onclick="send('START_SET')">START</button>
-<button onclick="send('STOP_SET')">STOP</button>
+        <div class="control-panel">
+            <button class="btn-start" onclick="sendCommand('START_SET')">▶ START SÉRIE</button>
+            <button class="btn-stop" onclick="sendCommand('STOP_SET')">⏹ STOP</button>
+        </div>
 
-<h3>Import / Export cviku</h3>
-<input id="code" placeholder="např. 4xb40">
-<button onclick="exportCode()">Export</button>
-<button onclick="importCode()">Import</button>
+        <div class="card">
+            <div class="label" style="margin-bottom:10px">Kalibrace rozsahu</div>
+            <div class="control-panel">
+                <button class="btn-cal" id="cal-start-btn" onclick="startCal()">1. START KALIBRACE</button>
+                <button class="btn-cal" onclick="sendCommand('CAL_END'); resetCalUI()">2. ULOŽIT ROZSAH</button>
+            </div>
+            <div class="label" style="margin-top:8px; font-size:0.7rem; color:#555;">Klikni Start -> Udělej plný pohyb -> Uložit</div>
+        </div>
 
-<h3>Výsledky</h3>
-<table border="1">
-<tr><th>Reps</th><th>Failed</th><th>Con</th><th>Ecc</th></tr>
-<tr>
-<td id="reps">0</td>
-<td id="failed" class="failed">0</td>
-<td id="con">0</td>
-<td id="ecc">0</td>
-</tr>
-</table>
+        <div class="card" style="padding: 15px;">
+            <div class="label">Log Poslední série</div>
+            <table id="log-table">
+                <thead><tr><th>#</th><th>Stav</th><th>Con/Ecc</th></tr></thead>
+                <tbody id="log-body"></tbody>
+            </table>
+        </div>
+
+    </div>
 
 <script>
-let dev, srv, cmd, status;
+    // UUIDs z Firmware
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const CMD_UUID     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    const STATUS_UUID  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
 
-async function connect(){
-  dev = await navigator.bluetooth.requestDevice({
-    filters:[{name:"GymTrack"}],
-    optionalServices:["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
-  });
-  const g = await dev.gatt.connect();
-  srv = await g.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-  cmd = await srv.getCharacteristic("beb5483e-36e1-4688-b7f5-ea07361b26a8");
-  status = await srv.getCharacteristic("1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e");
+    let device, cmdChar;
+    let lastReps = 0;
 
-  status.startNotifications();
-  status.oncharacteristicvaluechanged = e => {
-    const d = JSON.parse(new TextDecoder().decode(e.target.value));
-    reps.textContent = d.reps;
-    failed.textContent = d.failed;
-    con.textContent = d.con;
-    ecc.textContent = d.ecc;
-    bat.textContent = "Baterie: " + d.bat + "%";
-  };
-}
+    async function connect() {
+        try {
+            document.getElementById('status-text').innerText = "Hledám...";
+            
+            device = await navigator.bluetooth.requestDevice({
+                filters: [{ services: [SERVICE_UUID] }]
+            });
 
-async function send(c){
-  if(!cmd) await connect();
-  await cmd.writeValue(new TextEncoder().encode(c));
-}
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            
+            cmdChar = await service.getCharacteristic(CMD_UUID);
+            const statusChar = await service.getCharacteristic(STATUS_UUID);
 
-// jednoduchý export/import (textový kód)
-function exportCode(){
-  code.value = reps.textContent + "x" + failed.textContent + "b" + bat.textContent;
-}
+            await statusChar.startNotifications();
+            statusChar.addEventListener('characteristicvaluechanged', handleData);
 
-function importCode(){
-  alert("Import jen koncepčně – struktura připravena");
-}
+            // UI Update
+            document.getElementById('status-text').innerText = "🟢 Připojeno";
+            document.getElementById('status-text').style.color = "#00E676";
+            document.getElementById('btn-connect').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'flex';
+
+            device.addEventListener('gattserverdisconnected', () => {
+                alert("Zařízení odpojeno");
+                location.reload();
+            });
+
+        } catch (e) {
+            alert("Chyba připojení: " + e);
+            document.getElementById('status-text').innerText = "Chyba";
+        }
+    }
+
+    function handleData(event) {
+        const json = new TextDecoder().decode(event.target.value);
+        try {
+            const d = JSON.parse(json); 
+            // JSON: {"reps":0,"failed":0,"con":0.00,"ecc":0.00,"bat":50}
+
+            document.getElementById('reps-val').innerText = d.reps;
+            document.getElementById('fail-val').innerText = d.failed;
+            document.getElementById('bat-val').innerText = d.bat;
+            document.getElementById('tempo-val').innerText = `${d.con.toFixed(1)}s / ${d.ecc.toFixed(1)}s`;
+
+            // Pokud přibylo opakování, zapiš do tabulky
+            if (d.reps > lastReps) {
+                addLog(d.reps, true, d.con, d.ecc);
+                lastReps = d.reps;
+            } else if (d.reps === 0 && lastReps > 0) {
+                // Reset (nová série)
+                document.getElementById('log-body').innerHTML = "";
+                lastReps = 0;
+            }
+
+        } catch (e) { console.warn("Parse error", json); }
+    }
+
+    async function sendCommand(cmd) {
+        if(!cmdChar) return;
+        await cmdChar.writeValue(new TextEncoder().encode(cmd));
+        // Vibrace telefonu při kliknutí (haptická odezva)
+        if(navigator.vibrate) navigator.vibrate(50);
+    }
+
+    function startCal() {
+        sendCommand('CAL_START');
+        const btn = document.getElementById('cal-start-btn');
+        btn.innerText = "HÝBEJ ZÁVAŽÍM...";
+        btn.classList.add('active');
+    }
+
+    function resetCalUI() {
+        const btn = document.getElementById('cal-start-btn');
+        btn.innerText = "1. START KALIBRACE";
+        btn.classList.remove('active');
+    }
+
+    function addLog(repNum, valid, con, ecc) {
+        const row = `<tr>
+            <td>${repNum}</td>
+            <td style="color:#00E676">OK</td>
+            <td>${con.toFixed(1)} / ${ecc.toFixed(1)}</td>
+        </tr>`;
+        document.getElementById('log-body').insertAdjacentHTML('afterbegin', row);
+    }
 </script>
 
 </body>
