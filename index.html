@@ -3,48 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>GymTrack Pro</title>
+<title>GymTrack Final</title>
 <style>
     :root { --primary: #00E676; --bg: #121212; --card: #1e1e1e; --text: #eee; --accent: #2979ff; }
-    body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; text-align: center; }
-    
-    /* Layout */
+    body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; text-align: center; }
     .grid { display: grid; gap: 15px; max-width: 500px; margin: auto; }
     .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    
-    /* Header & Status */
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .status-badge { font-size: 0.9rem; font-weight: bold; color: #888; }
-    
-    /* Buttons */
-    button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; color: #fff; transition: 0.2s; margin-bottom: 8px; }
-    button:active { transform: scale(0.97); }
-    
+    button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; color: #fff; margin-bottom: 8px; }
     .btn-connect { background: var(--accent); }
     .btn-start { background: var(--primary); color: #000; font-size: 1.2rem; }
     .btn-stop { background: #ff5252; }
     .btn-cal { background: #333; border: 1px solid #555; }
     .btn-mode { background: #222; color: #888; border: 1px solid #333; }
     .btn-mode.active { background: #ff9800; color: #000; border-color: #ff9800; }
-    
-    /* Stats */
-    .stat-row { display: flex; justify-content: space-around; align-items: center; }
     .big-num { font-size: 4.5rem; font-weight: 800; color: var(--primary); margin: 0; line-height: 1; }
-    .med-num { font-size: 2rem; font-weight: bold; color: #fff; }
-    
-    /* Table */
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
     td, th { padding: 8px; border-bottom: 1px solid #333; text-align: center; }
     .valid { color: var(--primary); } .invalid { color: #ff5252; }
-    
-    /* Input */
-    input { width: 65%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; font-family: monospace; letter-spacing: 1px; }
+    input { width: 65%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; font-family: monospace; }
 </style>
 </head>
 <body>
 
 <div class="grid">
-    
     <div class="card">
         <div class="header">
             <div style="font-weight:900; letter-spacing:1px">GYMTRACK</div>
@@ -59,16 +42,8 @@
     <div id="mainPanel" style="display:none">
         
         <div class="card">
-            <div class="stat-row">
-                <div>
-                    <div style="font-size:0.8rem; color:#aaa">REPS</div>
-                    <div class="big-num" id="repVal">0</div>
-                </div>
-                <div>
-                    <div style="font-size:0.8rem; color:#aaa">POSITION</div>
-                    <div class="med-num" id="posVal">0%</div>
-                </div>
-            </div>
+            <div style="font-size:0.8rem; color:#aaa">REPS</div>
+            <div class="big-num" id="repVal">0</div>
         </div>
 
         <div class="card">
@@ -80,36 +55,29 @@
 
         <div class="card">
             <div style="font-size:0.8rem; color:#aaa; margin-bottom:10px">MODE & CALIBRATION</div>
-            
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px">
                 <button id="btnModeRot" class="btn-mode active" onclick="setMode('ROT')">ROTATION</button>
                 <button id="btnModeLin" class="btn-mode" onclick="setMode('LIN')">LINEAR</button>
             </div>
-
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
                 <button id="btnMin" class="btn-cal" onclick="calibrate('CAL_MIN', 'btnMin')">1. BOTTOM</button>
                 <button id="btnMax" class="btn-cal" onclick="calibrate('CAL_MAX', 'btnMax')">2. TOP</button>
             </div>
-
-            <div style="margin-top:15px; border-top:1px solid #333; padding-top:15px">
-                <div style="display:flex; justify-content:space-between;">
-                    <input id="codeIn" placeholder="Code appears here...">
-                    <button style="width:30%; padding:10px; margin:0;" class="btn-cal" onclick="importCode()">IMPORT</button>
-                </div>
-                <div style="font-size:0.75rem; color:#666; margin-top:5px; text-align:left;">
-                    *Code is auto-filled after calibration
-                </div>
+            
+            <div style="margin-top:15px; padding-top:15px; border-top:1px solid #333;">
+                <input id="codeIn" placeholder="Code...">
+                <button style="width:30%; padding:10px; margin:0;" class="btn-cal" onclick="importCode()">IMPORT</button>
             </div>
         </div>
 
         <div class="card">
             <table>
-                <thead><tr><th>#</th><th>Valid</th><th>Range</th><th>Time (Con/Ecc)</th></tr></thead>
+                <thead><tr><th>#</th><th>Valid</th><th>Range</th><th>Time (C/E)</th></tr></thead>
                 <tbody id="logBody"></tbody>
             </table>
+            <div id="debugRep" style="font-size:0.7rem; color:#555; margin-top:10px; font-family:monospace; text-align:left;">Waiting for reps...</div>
         </div>
     </div>
-
 </div>
 
 <script>
@@ -137,53 +105,56 @@ async function connect(){
         await stChar.startNotifications();
         stChar.addEventListener('characteristicvaluechanged', (e) => {
             const d = JSON.parse(new TextDecoder().decode(e.target.value));
-            document.getElementById('posVal').innerText = Math.round(d.pos * 100) + "%";
-            const bat = document.getElementById('batVal');
-            bat.innerText = d.bat;
-            bat.style.color = d.bat < 20 ? '#ff5252' : '#fff';
+            document.getElementById('batVal').innerText = d.bat;
+            document.getElementById('batVal').style.color = d.bat < 20 ? '#f33' : '#fff';
         });
 
-        // 2. Reps (Count)
+        // 2. Reps (CRITICAL FIX)
         const repChar = await svc.getCharacteristic(CHAR_REP);
         await repChar.startNotifications();
-        repChar.addEventListener('characteristicvaluechanged', (e) => {
-            const d = JSON.parse(new TextDecoder().decode(e.target.value));
-            document.getElementById('repVal').innerText = d.rep;
-            const row = `<tr>
-                <td>${d.rep}</td>
-                <td class="${d.valid?'valid':'invalid'}">${d.valid?'OK':'FAIL'}</td>
-                <td>${Math.round(d.range*100)}%</td>
-                <td>${d.conc.toFixed(1)} / ${d.ecc.toFixed(1)}</td>
-            </tr>`;
-            document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
-        });
+        repChar.addEventListener('characteristicvaluechanged', handleRep);
 
-        // 3. Exercise Code (Auto-Fill)
+        // 3. Auto-Fill Code
         const exChar = await svc.getCharacteristic(CHAR_EX);
         await exChar.startNotifications();
         exChar.addEventListener('characteristicvaluechanged', (e) => {
             const code = new TextDecoder().decode(e.target.value);
-            // AUTO FILL INPUT
-            const input = document.getElementById('codeIn');
-            input.value = code;
-            
-            // Visual flash effect on input
-            input.style.borderColor = "#00E676";
-            setTimeout(() => { input.style.borderColor = "#444"; }, 1000);
+            document.getElementById('codeIn').value = code;
+            document.getElementById('codeIn').style.borderColor = "#0f0";
+            setTimeout(()=>document.getElementById('codeIn').style.borderColor="#444", 1000);
         });
 
-        // UI Ready
         document.getElementById('btnConnect').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
         document.getElementById('statusText').innerText = "Connected";
-        document.getElementById('statusText').style.color = "#00E676";
+        document.getElementById('statusText').style.color = "#0f0";
 
-    } catch(e) { alert("Connection Error: " + e); }
+    } catch(e) { alert("Error: " + e); }
 }
 
-async function cmd(c){
-    if(cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c));
+function handleRep(e) {
+    const raw = new TextDecoder().decode(e.target.value);
+    // Show Raw Data in Debug element
+    document.getElementById('debugRep').innerText = "RAW: " + raw;
+
+    try {
+        const d = JSON.parse(raw);
+        document.getElementById('repVal').innerText = d.rep;
+        
+        const row = `<tr>
+            <td>${d.rep}</td>
+            <td class="${d.valid?'valid':'invalid'}">${d.valid?'OK':'FAIL'}</td>
+            <td>${Math.round(d.range*100)}%</td>
+            <td>${d.conc.toFixed(1)} / ${d.ecc.toFixed(1)}</td>
+        </tr>`;
+        document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
+    } catch(err) {
+        document.getElementById('debugRep').innerText += " | PARSE ERROR";
+        console.error(err);
+    }
 }
+
+async function cmd(c){ if(cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c)); }
 
 function setMode(mode) {
     cmd(mode === 'ROT' ? 'MODE_ROT' : 'MODE_LIN');
@@ -194,23 +165,12 @@ function setMode(mode) {
 async function calibrate(command, btnId) {
     await cmd(command);
     const btn = document.getElementById(btnId);
-    const oldText = btn.innerText;
-    btn.innerText = "SAVED!";
-    btn.style.background = "#00E676";
-    btn.style.color = "#000";
-    setTimeout(() => {
-        btn.innerText = oldText;
-        btn.style.background = "#333";
-        btn.style.color = "#fff";
-    }, 1000);
+    btn.style.background = "#0f0"; btn.style.color="#000"; btn.innerText="SAVED";
+    setTimeout(() => { btn.style.background="#333"; btn.style.color="#fff"; btn.innerText=btnId.includes("Min")?"1. BOTTOM":"2. TOP"; }, 1000);
 }
 
 function importCode(){
     cmd("IMPORT:" + document.getElementById('codeIn').value);
-    // Feedback
-    const btn = document.querySelector('button[onclick="importCode()"]');
-    btn.innerText = "OK";
-    setTimeout(() => btn.innerText = "IMPORT", 1000);
 }
 </script>
 </body>
