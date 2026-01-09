@@ -1,85 +1,37 @@
 <!DOCTYPE html>
-<html lang="cs">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GymTrack BLE</title>
-<style>
-body{font-family:sans-serif;background:#111;color:#eee;text-align:center;padding:20px;}
-button{margin:10px;padding:15px 30px;font-size:18px;cursor:pointer;background:#333;color:white;border:1px solid #555;border-radius:5px;}
-button:active{background:#555;}
-#status{font-weight:bold;color:#f90;margin:20px;}
-.val{font-size:2em;font-family:monospace;color:#0f0;}
-</style>
-</head>
+<html>
 <body>
+<h2>GymTrack</h2>
 
-<h2>GymTrack BLE Control</h2>
+<button onclick="send('CAL_START')">Cal Start</button>
+<button onclick="send('CAL_END')">Cal End</button><br><br>
 
-<button id="btnConnect" onclick="connect()">🔌 PŘIPOJIT</button>
-<br>
-<button onclick="cmd('TARE')">⚖️ TARE</button>
+<button onclick="send('START_SET')">Start Set</button>
+<button onclick="send('STOP_SET')">Stop Set</button>
 
-<p id="status">Odpojeno</p>
-<div class="val" id="angleVal">--°</div>
+<pre id="out"></pre>
 
 <script>
-// Stejná UUID jako ve Firmware
-const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+let dev, srv, cmd, status;
 
-let device, cmdChar;
-
-async function connect() {
-  try {
-    document.getElementById('status').innerText = "Hledám zařízení...";
-    
-    // ZMĚNA: Hledáme podle Services, ne podle jména. To je spolehlivější.
-    device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }] 
-    });
-
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService(SERVICE_UUID);
-    
-    cmdChar = await service.getCharacteristic(CHAR_CMD);
-    const statusChar = await service.getCharacteristic(CHAR_STATUS);
-
-    // Zapnout notifikace
-    await statusChar.startNotifications();
-    statusChar.addEventListener('characteristicvaluechanged', handleStatus);
-
-    document.getElementById('status').innerText = "PŘIPOJENO!";
-    document.getElementById('status').style.color = "#0f0";
-    document.getElementById('btnConnect').style.display = 'none';
-
-    device.addEventListener('gattserverdisconnected', () => {
-       document.getElementById('status').innerText = "Odpojeno";
-       document.getElementById('status').style.color = "#f33";
-       document.getElementById('btnConnect').style.display = 'inline-block';
-    });
-
-  } catch (error) {
-    console.error(error);
-    document.getElementById('status').innerText = "Chyba: " + error;
-  }
+async function connect(){
+  dev = await navigator.bluetooth.requestDevice({
+    filters:[{name:"GymTrack"}],
+    optionalServices:["4fafc201-1fb5-459e-8fcc-c5c9c331914b"]
+  });
+  const g = await dev.gatt.connect();
+  srv = await g.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+  cmd = await srv.getCharacteristic("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+  status = await srv.getCharacteristic("1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e");
+  status.startNotifications();
+  status.oncharacteristicvaluechanged = e=>{
+    out.textContent = new TextDecoder().decode(e.target.value);
+  };
 }
 
-function handleStatus(event) {
-  const value = new TextDecoder().decode(event.target.value);
-  try {
-    const json = JSON.parse(value);
-    document.getElementById('angleVal').innerText = json.angle.toFixed(1) + "°";
-  } catch(e) { console.log("JSON Error", value); }
-}
-
-async function cmd(c) {
-  if (!cmdChar) return;
-  try {
-    await cmdChar.writeValue(new TextEncoder().encode(c));
-    console.log("Sent:", c);
-  } catch (e) { console.error(e); }
+async function send(c){
+  if(!cmd) await connect();
+  await cmd.writeValue(new TextEncoder().encode(c));
 }
 </script>
 </body>
