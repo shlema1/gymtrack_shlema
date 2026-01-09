@@ -1,15 +1,44 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset="utf-8">
+<title>GymTrack</title>
+<style>
+body { font-family: sans-serif; }
+.failed { color: red; }
+</style>
+</head>
 <body>
+
 <h2>GymTrack</h2>
 
-<button onclick="send('CAL_START')">Cal Start</button>
-<button onclick="send('CAL_END')">Cal End</button><br><br>
+<button onclick="connect()">Connect</button>
+<span id="bat"></span>
+<hr>
 
-<button onclick="send('START_SET')">Start Set</button>
-<button onclick="send('STOP_SET')">Stop Set</button>
+<h3>Kalibrace</h3>
+<button onclick="send('CAL_START')">Start kalibrace</button>
+<button onclick="send('CAL_END')">Konec kalibrace</button>
 
-<pre id="out"></pre>
+<h3>Set</h3>
+<button onclick="send('START_SET')">START</button>
+<button onclick="send('STOP_SET')">STOP</button>
+
+<h3>Import / Export cviku</h3>
+<input id="code" placeholder="např. 4xb40">
+<button onclick="exportCode()">Export</button>
+<button onclick="importCode()">Import</button>
+
+<h3>Výsledky</h3>
+<table border="1">
+<tr><th>Reps</th><th>Failed</th><th>Con</th><th>Ecc</th></tr>
+<tr>
+<td id="reps">0</td>
+<td id="failed" class="failed">0</td>
+<td id="con">0</td>
+<td id="ecc">0</td>
+</tr>
+</table>
 
 <script>
 let dev, srv, cmd, status;
@@ -23,9 +52,15 @@ async function connect(){
   srv = await g.getPrimaryService("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
   cmd = await srv.getCharacteristic("beb5483e-36e1-4688-b7f5-ea07361b26a8");
   status = await srv.getCharacteristic("1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e");
+
   status.startNotifications();
-  status.oncharacteristicvaluechanged = e=>{
-    out.textContent = new TextDecoder().decode(e.target.value);
+  status.oncharacteristicvaluechanged = e => {
+    const d = JSON.parse(new TextDecoder().decode(e.target.value));
+    reps.textContent = d.reps;
+    failed.textContent = d.failed;
+    con.textContent = d.con;
+    ecc.textContent = d.ecc;
+    bat.textContent = "Baterie: " + d.bat + "%";
   };
 }
 
@@ -33,6 +68,16 @@ async function send(c){
   if(!cmd) await connect();
   await cmd.writeValue(new TextEncoder().encode(c));
 }
+
+// jednoduchý export/import (textový kód)
+function exportCode(){
+  code.value = reps.textContent + "x" + failed.textContent + "b" + bat.textContent;
+}
+
+function importCode(){
+  alert("Import jen koncepčně – struktura připravena");
+}
 </script>
+
 </body>
 </html>
