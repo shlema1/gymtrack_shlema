@@ -1,124 +1,80 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GymTrack AI</title>
+<meta name="viewport" content="width=device-width">
+<title>GymTrack</title>
 <style>
-:root { --primary:#00e676; --bg:#121212; --card:#1e1e1e; --text:#eee; --accent:#2979ff; }
-body { font-family:Segoe UI,sans-serif; background:var(--bg); color:var(--text); margin:0; padding:15px; text-align:center;}
-.grid { display:grid; gap:15px; max-width:520px; margin:auto;}
-.card { background:var(--card); padding:18px; border-radius:16px;}
-button { width:100%; padding:14px; border-radius:10px; border:none; font-weight:700; cursor:pointer;}
-.btn-connect{background:var(--accent); color:#fff;}
-.btn-start{background:var(--primary); color:#000;}
-.btn-stop{background:#ff5252; color:#fff;}
-.btn-cal{background:#222; color:#aaa; border:1px solid #444;}
-.big{font-size:4rem; font-weight:800; color:var(--primary);}
-.set-title{margin-top:10px;font-weight:800;color:#ff9800;}
-table{width:100%;border-collapse:collapse;font-size:.85rem;}
-td,th{padding:6px;border-bottom:1px solid #333;}
-.valid{color:#00e676}.invalid{color:#ff5252}
-input{width:65%;padding:10px;background:#222;color:#fff;border:1px solid #444;border-radius:6px;}
+body{background:#111;color:#eee;font-family:sans-serif;text-align:center}
+button{padding:14px;margin:6px;width:100%;font-weight:bold}
+.card{background:#1e1e1e;padding:16px;border-radius:12px;margin:10px}
+.big{font-size:4rem;color:#00e676}
 </style>
 </head>
-
 <body>
-<div class="grid">
 
 <div class="card">
-    <div style="display:flex;justify-content:space-between">
-        <b>GYMTRACK AI</b>
-        🔋 <span id="bat">--</span>%
-    </div>
-    <button class="btn-connect" onclick="connect()">CONNECT</button>
+  <b>GymTrack</b> 🔋 <span id="bat">--</span>%
+  <button onclick="connect()">CONNECT</button>
 </div>
 
-<div id="panel" style="display:none">
+<div id="ui" style="display:none">
+  <div class="card"><div class="big" id="rep">0</div>REPS</div>
 
-<div class="card">
-    <div>REPS</div>
-    <div class="big" id="rep">0</div>
-</div>
+  <div class="card">
+    <button onclick="cmd('START_SET')">START SET</button>
+    <button onclick="cmd('STOP_SET')">STOP SET</button>
+  </div>
 
-<div class="card">
-    <button class="btn-start" onclick="cmd('START_SET')">START SET</button>
-    <button class="btn-stop" onclick="cmd('STOP_SET')">STOP SET</button>
-</div>
+  <div class="card">
+    <button onclick="cmd('CAL_AUTO_START')">AUTO CAL START</button>
+    <button onclick="cmd('CAL_AUTO_STOP')">AUTO CAL STOP</button>
+  </div>
 
-<div class="card">
-    <button class="btn-cal" onclick="cmd('CAL_AUTO_START')">AUTO CALIBRATE</button>
-    <button class="btn-cal" onclick="cmd('CAL_AUTO_STOP')">END CALIBRATION</button>
-</div>
+  <div class="card">
+    <input id="code" placeholder="LZ:12-84">
+    <button onclick="cmd('IMPORT:'+code.value)">IMPORT</button>
+  </div>
 
-<div class="card">
-    <input id="codeIn" placeholder="Exercise code">
-    <button class="btn-cal" onclick="cmd('IMPORT:'+codeIn.value)">IMPORT</button>
-</div>
-
-<div class="card">
-    <div id="log"></div>
-</div>
-
-</div>
+  <table width="100%" id="log"></table>
 </div>
 
 <script>
-const SVC="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const CMD="beb5483e-36e1-4688-b7f5-ea07361b26a8";
-const REP="d4d4791e-0d1c-4772-9c71-2a67c55c7096";
-const STAT="1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
-const EX="70308365-5381-4209-9150-14966601f01c";
-
+const S="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const C={cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
+stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
+rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
+ex:"70308365-5381-4209-9150-14966601f01c"};
 let cmdChar;
-let setId=0;
 
 async function connect(){
- const dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});
- const gatt=await dev.gatt.connect();
- const svc=await gatt.getPrimaryService(SVC);
- cmdChar=await svc.getCharacteristic(CMD);
+ const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
+ const g=await d.gatt.connect();
+ const s=await g.getPrimaryService(S);
+ cmdChar=await s.getCharacteristic(C.cmd);
 
- (await svc.getCharacteristic(STAT)).startNotifications().then(c=>{
-  c.oncharacteristicvaluechanged=e=>{
-    const d=JSON.parse(new TextDecoder().decode(e.target.value));
-    bat.innerText=d.bat;
-  }
- });
+ (await s.getCharacteristic(C.stat)).startNotifications()
+  .then(c=>c.oncharacteristicvaluechanged=e=>{
+    const j=JSON.parse(new TextDecoder().decode(e.target.value));
+    bat.innerText=j.bat;
+  });
 
- (await svc.getCharacteristic(EX)).startNotifications().then(c=>{
-  c.oncharacteristicvaluechanged=e=>{
-    codeIn.value=new TextDecoder().decode(e.target.value).trim();
-  }
- });
+ (await s.getCharacteristic(C.rep)).startNotifications()
+  .then(c=>c.oncharacteristicvaluechanged=e=>{
+    const j=JSON.parse(new TextDecoder().decode(e.target.value));
+    rep.innerText=j.rep;
+    log.innerHTML=`<tr><td>${j.rep}</td><td>${(j.dist||0).toFixed(1)}cm</td></tr>`+log.innerHTML;
+  });
 
- (await svc.getCharacteristic(REP)).startNotifications().then(c=>{
-  c.oncharacteristicvaluechanged=handleRep;
- });
+ (await s.getCharacteristic(C.ex)).startNotifications()
+  .then(c=>c.oncharacteristicvaluechanged=e=>{
+    code.value=new TextDecoder().decode(e.target.value);
+  });
 
- panel.style.display="block";
+ ui.style.display="block";
 }
 
-function handleRep(e){
- const d=JSON.parse(new TextDecoder().decode(e.target.value));
- rep.innerText=d.rep;
-
- if(d.newSet){
-   setId++;
-   log.innerHTML=`<div class="set-title">SET ${setId}</div>`+log.innerHTML;
- }
-
- log.innerHTML+=`
- <table>
- <tr>
- <td>${d.rep}</td>
- <td class="${d.valid?'valid':'invalid'}">${(d.range*100).toFixed(0)}%</td>
- <td>${d.dist.toFixed(1)} cm</td>
- <td>${d.conc.toFixed(1)}/${d.ecc.toFixed(1)}</td>
- </tr></table>`;
-}
-
-function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c));}
+function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c))}
 </script>
 </body>
 </html>
