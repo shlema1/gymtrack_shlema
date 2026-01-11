@@ -2,139 +2,123 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GymTrack AI</title>
 <style>
-    :root { --primary: #00E676; --bg: #121212; --card: #1e1e1e; --text: #eee; --accent: #2979ff; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; text-align: center; }
-    .grid { display: grid; gap: 15px; max-width: 500px; margin: auto; }
-    .card { background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: #fff; margin-bottom: 8px; }
-    .btn-connect { background: var(--accent); }
-    .btn-start { background: var(--primary); color: #000; }
-    .btn-stop { background: #ff5252; }
-    .btn-cal { background: #333; border: 1px solid #555; }
-    .btn-mode { background: #222; color: #888; border: 1px solid #333; }
-    .btn-mode.active { background: #ff9800; color: #000; border-color: #ff9800; }
-    .big-num { font-size: 4rem; font-weight: 800; color: var(--primary); margin: 0; line-height: 1; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-    td, th { padding: 8px; border-bottom: 1px solid #333; }
-    .valid { color: var(--primary); } .invalid { color: #ff5252; }
-    input { width: 65%; padding: 12px; background: #222; border: 1px solid #444; color: white; border-radius: 6px; }
+:root { --primary:#00e676; --bg:#121212; --card:#1e1e1e; --text:#eee; --accent:#2979ff; }
+body { font-family:Segoe UI,sans-serif; background:var(--bg); color:var(--text); margin:0; padding:15px; text-align:center;}
+.grid { display:grid; gap:15px; max-width:520px; margin:auto;}
+.card { background:var(--card); padding:18px; border-radius:16px;}
+button { width:100%; padding:14px; border-radius:10px; border:none; font-weight:700; cursor:pointer;}
+.btn-connect{background:var(--accent); color:#fff;}
+.btn-start{background:var(--primary); color:#000;}
+.btn-stop{background:#ff5252; color:#fff;}
+.btn-cal{background:#222; color:#aaa; border:1px solid #444;}
+.big{font-size:4rem; font-weight:800; color:var(--primary);}
+.set-title{margin-top:10px;font-weight:800;color:#ff9800;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+td,th{padding:6px;border-bottom:1px solid #333;}
+.valid{color:#00e676}.invalid{color:#ff5252}
+input{width:65%;padding:10px;background:#222;color:#fff;border:1px solid #444;border-radius:6px;}
 </style>
 </head>
+
 <body>
-
 <div class="grid">
-    <div class="card">
-        <div class="header">
-            <div style="font-weight:900">GYMTRACK AI</div>
-            <div>🔋 <span id="batVal">--</span>%</div>
-        </div>
-        <button class="btn-connect" id="btnConnect" onclick="connect()">CONNECT</button>
+
+<div class="card">
+    <div style="display:flex;justify-content:space-between">
+        <b>GYMTRACK AI</b>
+        🔋 <span id="bat">--</span>%
     </div>
+    <button class="btn-connect" onclick="connect()">CONNECT</button>
+</div>
 
-    <div id="mainPanel" style="display:none">
-        <div class="card">
-            <div style="font-size:0.8rem; color:#aaa">REPS</div>
-            <div class="big-num" id="repVal">0</div>
-        </div>
+<div id="panel" style="display:none">
 
-        <div class="card">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                <button class="btn-start" onclick="cmd('START_SET')">START</button>
-                <button class="btn-stop" onclick="cmd('STOP_SET')">STOP</button>
-            </div>
-        </div>
+<div class="card">
+    <div>REPS</div>
+    <div class="big" id="rep">0</div>
+</div>
 
-        <div class="card">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px">
-                <button id="btnModeRot" class="btn-mode active" onclick="setMode('ROT')">ROTATION</button>
-                <button id="btnModeLin" class="btn-mode" onclick="setMode('LIN')">LINEAR (Auto CM)</button>
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                <button id="btnMin" class="btn-cal" onclick="calibrate('CAL_MIN', 'btnMin')">1. BOTTOM</button>
-                <button id="btnMax" class="btn-cal" onclick="calibrate('CAL_MAX', 'btnMax')">2. TOP</button>
-            </div>
-            <div style="margin-top:15px; border-top:1px solid #333; padding-top:15px">
-                 <input id="codeIn" placeholder="Code...">
-                 <button style="width:30%; padding:10px;" class="btn-cal" onclick="importCode()">IMPORT</button>
-            </div>
-        </div>
+<div class="card">
+    <button class="btn-start" onclick="cmd('START_SET')">START SET</button>
+    <button class="btn-stop" onclick="cmd('STOP_SET')">STOP SET</button>
+</div>
 
-        <div class="card">
-            <table>
-                <thead><tr><th>#</th><th>Range</th><th>Dist (CM)</th><th>Time</th></tr></thead>
-                <tbody id="logBody"></tbody>
-            </table>
-        </div>
-    </div>
+<div class="card">
+    <button class="btn-cal" onclick="cmd('CAL_AUTO_START')">AUTO CALIBRATE</button>
+    <button class="btn-cal" onclick="cmd('CAL_AUTO_STOP')">END CALIBRATION</button>
+</div>
+
+<div class="card">
+    <input id="codeIn" placeholder="Exercise code">
+    <button class="btn-cal" onclick="cmd('IMPORT:'+codeIn.value)">IMPORT</button>
+</div>
+
+<div class="card">
+    <div id="log"></div>
+</div>
+
+</div>
 </div>
 
 <script>
-const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
-const CHAR_REP     = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
-const CHAR_EX      = "70308365-5381-4209-9150-14966601f01c";
+const SVC="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const CMD="beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const REP="d4d4791e-0d1c-4772-9c71-2a67c55c7096";
+const STAT="1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+const EX="70308365-5381-4209-9150-14966601f01c";
 
 let cmdChar;
+let setId=0;
 
 async function connect(){
-    try {
-        const dev = await navigator.bluetooth.requestDevice({ filters:[{services:[SERVICE_UUID]}] });
-        const srv = await dev.gatt.connect();
-        const svc = await srv.getPrimaryService(SERVICE_UUID);
-        
-        cmdChar = await svc.getCharacteristic(CHAR_CMD);
+ const dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});
+ const gatt=await dev.gatt.connect();
+ const svc=await gatt.getPrimaryService(SVC);
+ cmdChar=await svc.getCharacteristic(CMD);
 
-        (await svc.getCharacteristic(CHAR_STATUS)).startNotifications().then(c => {
-            c.addEventListener('characteristicvaluechanged', e => {
-                const d = JSON.parse(new TextDecoder().decode(e.target.value).replace(/\0/g, ''));
-                document.getElementById('batVal').innerText = d.bat;
-            });
-        });
+ (await svc.getCharacteristic(STAT)).startNotifications().then(c=>{
+  c.oncharacteristicvaluechanged=e=>{
+    const d=JSON.parse(new TextDecoder().decode(e.target.value));
+    bat.innerText=d.bat;
+  }
+ });
 
-        (await svc.getCharacteristic(CHAR_REP)).startNotifications().then(c => {
-            c.addEventListener('characteristicvaluechanged', handleRep);
-        });
+ (await svc.getCharacteristic(EX)).startNotifications().then(c=>{
+  c.oncharacteristicvaluechanged=e=>{
+    codeIn.value=new TextDecoder().decode(e.target.value).trim();
+  }
+ });
 
-        (await svc.getCharacteristic(CHAR_EX)).startNotifications().then(c => {
-            c.addEventListener('characteristicvaluechanged', e => {
-                document.getElementById('codeIn').value = new TextDecoder().decode(e.target.value).replace(/\0/g, '');
-            });
-        });
+ (await svc.getCharacteristic(REP)).startNotifications().then(c=>{
+  c.oncharacteristicvaluechanged=handleRep;
+ });
 
-        document.getElementById('btnConnect').style.display = 'none';
-        document.getElementById('mainPanel').style.display = 'block';
-
-    } catch(e) { alert(e); }
+ panel.style.display="block";
 }
 
-function handleRep(e) {
-    const raw = new TextDecoder().decode(e.target.value).replace(/\0/g, '');
-    try {
-        const d = JSON.parse(raw);
-        document.getElementById('repVal').innerText = d.rep;
-        
-        // Zde bere dist (CM) přímo ze senzoru, pokud existuje
-        const distDisplay = d.dist ? `<b>${d.dist.toFixed(1)}</b>` : "-";
+function handleRep(e){
+ const d=JSON.parse(new TextDecoder().decode(e.target.value));
+ rep.innerText=d.rep;
 
-        const row = `<tr>
-            <td>${d.rep}</td>
-            <td class="${d.valid?'valid':'invalid'}">${Math.round(d.range*100)}%</td>
-            <td>${distDisplay}</td>
-            <td>${d.conc.toFixed(1)} / ${d.ecc.toFixed(1)}</td>
-        </tr>`;
-        document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
-    } catch(err) { console.error(err); }
+ if(d.newSet){
+   setId++;
+   log.innerHTML=`<div class="set-title">SET ${setId}</div>`+log.innerHTML;
+ }
+
+ log.innerHTML+=`
+ <table>
+ <tr>
+ <td>${d.rep}</td>
+ <td class="${d.valid?'valid':'invalid'}">${(d.range*100).toFixed(0)}%</td>
+ <td>${d.dist.toFixed(1)} cm</td>
+ <td>${d.conc.toFixed(1)}/${d.ecc.toFixed(1)}</td>
+ </tr></table>`;
 }
 
-async function cmd(c){ if(cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c)); }
-function setMode(m){ cmd(m=='ROT'?'MODE_ROT':'MODE_LIN'); document.getElementById('btnModeRot').className=m=='ROT'?'btn-mode active':'btn-mode'; document.getElementById('btnModeLin').className=m=='LIN'?'btn-mode active':'btn-mode'; }
-async function calibrate(c,b){ await cmd(c); document.getElementById(b).style.background="#0f0"; setTimeout(()=>{document.getElementById(b).style.background="#333"},1000); }
-function importCode(){ cmd("IMPORT:"+document.getElementById('codeIn').value); }
+function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c));}
 </script>
 </body>
 </html>
