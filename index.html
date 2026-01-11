@@ -1,80 +1,259 @@
 <!DOCTYPE html>
-<html>
+<html lang="cs">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width">
-<title>GymTrack</title>
-<style>
-body{background:#111;color:#eee;font-family:sans-serif;text-align:center}
-button{padding:14px;margin:6px;width:100%;font-weight:bold}
-.card{background:#1e1e1e;padding:16px;border-radius:12px;margin:10px}
-.big{font-size:4rem;color:#00e676}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>GymTrack Final</title>
+    <style>
+        :root { 
+            --bg: #0a0a0a; 
+            --card: #161616; 
+            --primary: #00E676; 
+            --accent: #2979ff;
+            --danger: #ff4444;
+            --text: #e0e0e0;
+            --text-dim: #888;
+        }
+        
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; text-align: center; }
+        .grid { display: grid; gap: 15px; max-width: 500px; margin: auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid #222; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .status-dot { height: 10px; width: 10px; background: #555; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.connected { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+
+        /* Big Stats */
+        .big-stat { font-size: 5rem; font-weight: 800; color: var(--primary); line-height: 1; margin: 10px 0; }
+        .sub-stat { font-size: 1.5rem; color: #fff; font-weight: bold; }
+        .label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Progress Bar */
+        .progress-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 15px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
+
+        /* Buttons */
+        button { width: 100%; padding: 16px; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; color: #fff; transition: 0.2s; margin-bottom: 8px; }
+        button:active { transform: scale(0.98); }
+        .btn-connect { background: var(--accent); }
+        .btn-start { background: var(--primary); color: #000; }
+        .btn-stop { background: var(--danger); }
+        .btn-cal { background: #333; border: 1px solid #444; }
+        .btn-cal.recording { background: #ff9800; color: #000; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        /* Input Group */
+        .input-group { display: flex; gap: 10px; margin-top: 10px; }
+        input { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-family: monospace; text-align: center; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th { text-align: left; color: var(--text-dim); border-bottom: 1px solid #333; padding: 8px; }
+        td { padding: 8px; border-bottom: 1px solid #222; }
+        .val-ok { color: var(--primary); }
+        .val-bad { color: var(--danger); }
+    </style>
 </head>
 <body>
 
-<div class="card">
-  <b>GymTrack</b> 🔋 <span id="bat">--</span>%
-  <button onclick="connect()">CONNECT</button>
-</div>
+<div class="grid">
 
-<div id="ui" style="display:none">
-  <div class="card"><div class="big" id="rep">0</div>REPS</div>
+    <div class="card">
+        <div class="header">
+            <div style="font-weight:900; letter-spacing:1px">GYMTRACK</div>
+            <div>
+                <span class="status-dot" id="dot"></span>
+                <span id="batVal">--</span>% 🔋
+            </div>
+        </div>
+        <button class="btn-connect" id="btnConnect" onclick="connect()">PŘIPOJIT ZAŘÍZENÍ</button>
+    </div>
 
-  <div class="card">
-    <button onclick="cmd('START_SET')">START SET</button>
-    <button onclick="cmd('STOP_SET')">STOP SET</button>
-  </div>
+    <div id="dashboard" style="display:none;">
+        
+        <div class="card">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <div class="label">OPAKOVÁNÍ</div>
+                    <div class="big-stat" id="repVal">0</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="label">POLOHA</div>
+                    <div class="sub-stat" id="posVal">0%</div>
+                </div>
+            </div>
+            <div class="progress-bg">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
 
-  <div class="card">
-    <button onclick="cmd('CAL_AUTO_START')">AUTO CAL START</button>
-    <button onclick="cmd('CAL_AUTO_STOP')">AUTO CAL STOP</button>
-  </div>
+        <div class="card">
+            <div class="label" style="margin-bottom:10px">SÉRIE</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn-start" onclick="cmd('START_SET')">▶ START</button>
+                <button class="btn-stop" onclick="cmd('STOP_SET')">⏹ STOP</button>
+            </div>
+        </div>
 
-  <div class="card">
-    <input id="code" placeholder="LZ:12-84">
-    <button onclick="cmd('IMPORT:'+code.value)">IMPORT</button>
-  </div>
+        <div class="card">
+            <div class="label" style="margin-bottom:10px">NASTAVENÍ A KALIBRACE</div>
+            
+            <button id="btnCal" class="btn-cal" onclick="toggleCal()">📏 ZMĚŘIT ROZSAH (START)</button>
+            
+            <div style="margin-top: 15px;">
+                <div class="label">KÓD CVIKU (Import/Export)</div>
+                <div class="input-group">
+                    <input id="codeInput" placeholder="Např. LZ:10-90">
+                    <button style="width: auto; margin: 0;" class="btn-cal" onclick="importCode()">NAHRÁT</button>
+                </div>
+            </div>
+        </div>
 
-  <table width="100%" id="log"></table>
+        <div class="card">
+            <div class="label">HISTORIE SÉRIE</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Rozsah</th>
+                        <th>Dist</th>
+                        <th>Čas (Con/Ecc)</th>
+                    </tr>
+                </thead>
+                <tbody id="logBody"></tbody>
+            </table>
+        </div>
+
+    </div>
 </div>
 
 <script>
-const S="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const C={cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
-stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
-rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
-ex:"70308365-5381-4209-9150-14966601f01c"};
-let cmdChar;
+const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const CHAR_CMD     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CHAR_STATUS  = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+const CHAR_REP     = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
+const CHAR_EX      = "70308365-5381-4209-9150-14966601f01c";
 
-async function connect(){
- const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
- const g=await d.gatt.connect();
- const s=await g.getPrimaryService(S);
- cmdChar=await s.getCharacteristic(C.cmd);
+let device, cmdChar;
+let isCalibrating = false;
 
- (await s.getCharacteristic(C.stat)).startNotifications()
-  .then(c=>c.oncharacteristicvaluechanged=e=>{
-    const j=JSON.parse(new TextDecoder().decode(e.target.value));
-    bat.innerText=j.bat;
-  });
+async function connect() {
+    try {
+        device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [SERVICE_UUID] }]
+        });
+        
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        
+        cmdChar = await service.getCharacteristic(CHAR_CMD);
 
- (await s.getCharacteristic(C.rep)).startNotifications()
-  .then(c=>c.oncharacteristicvaluechanged=e=>{
-    const j=JSON.parse(new TextDecoder().decode(e.target.value));
-    rep.innerText=j.rep;
-    log.innerHTML=`<tr><td>${j.rep}</td><td>${(j.dist||0).toFixed(1)}cm</td></tr>`+log.innerHTML;
-  });
+        // 1. Status (Baterie, Poloha)
+        const stChar = await service.getCharacteristic(CHAR_STATUS);
+        await stChar.startNotifications();
+        stChar.addEventListener('characteristicvaluechanged', handleStatus);
 
- (await s.getCharacteristic(C.ex)).startNotifications()
-  .then(c=>c.oncharacteristicvaluechanged=e=>{
-    code.value=new TextDecoder().decode(e.target.value);
-  });
+        // 2. Reps (Opakování)
+        const repChar = await service.getCharacteristic(CHAR_REP);
+        await repChar.startNotifications();
+        repChar.addEventListener('characteristicvaluechanged', handleRep);
 
- ui.style.display="block";
+        // 3. Exercise Code (Import/Export notifikace)
+        const exChar = await service.getCharacteristic(CHAR_EX);
+        await exChar.startNotifications();
+        exChar.addEventListener('characteristicvaluechanged', (e) => {
+            const code = new TextDecoder().decode(e.target.value);
+            document.getElementById('codeInput').value = code;
+            flashInput();
+        });
+
+        // UI Update
+        document.getElementById('btnConnect').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('dot').classList.add('connected');
+        
+        device.addEventListener('gattserverdisconnected', onDisconnect);
+
+    } catch (e) {
+        alert("Chyba připojení: " + e);
+    }
 }
 
-function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c))}
+function handleStatus(e) {
+    const json = new TextDecoder().decode(e.target.value);
+    const d = JSON.parse(json); // {"pos":0.5, "bat":80}
+    
+    // Baterie
+    document.getElementById('batVal').innerText = d.bat;
+    
+    // Poloha (0.0 - 1.2) -> Procenta
+    const pct = Math.round(d.pos * 100);
+    document.getElementById('posVal').innerText = pct + "%";
+    
+    // Progress Bar (omezeno 0-100 pro grafiku)
+    const barW = Math.max(0, Math.min(100, pct));
+    document.getElementById('progressBar').style.width = barW + "%";
+}
+
+function handleRep(e) {
+    const json = new TextDecoder().decode(e.target.value);
+    const d = JSON.parse(json);
+    // {"rep":1,"valid":true,"range":0.9,"dist":45.2,"conc":1.2,"ecc":0.8}
+
+    document.getElementById('repVal').innerText = d.rep;
+
+    const row = `<tr>
+        <td>${d.rep}</td>
+        <td class="${d.valid ? 'val-ok' : 'val-bad'}">${Math.round(d.range*100)}%</td>
+        <td>${d.dist.toFixed(1)} cm</td>
+        <td>${d.conc.toFixed(1)}s / ${d.ecc.toFixed(1)}s</td>
+    </tr>`;
+    
+    document.getElementById('logBody').insertAdjacentHTML('afterbegin', row);
+}
+
+// Logika Kalibračního tlačítka
+async function toggleCal() {
+    const btn = document.getElementById('btnCal');
+    if (!isCalibrating) {
+        // Start
+        await cmd('CAL_AUTO_START');
+        btn.innerText = "🛑 UKONČIT A ULOŽIT";
+        btn.classList.add('recording');
+        isCalibrating = true;
+    } else {
+        // Stop
+        await cmd('CAL_AUTO_STOP');
+        btn.innerText = "📏 ZMĚŘIT ROZSAH (START)";
+        btn.classList.remove('recording');
+        isCalibrating = false;
+    }
+}
+
+async function importCode() {
+    const c = document.getElementById('codeInput').value;
+    if(c) await cmd("IMPORT:" + c);
+}
+
+async function cmd(c) {
+    if (cmdChar) await cmdChar.writeValue(new TextEncoder().encode(c));
+}
+
+function onDisconnect() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('btnConnect').style.display = 'block';
+    document.getElementById('dot').classList.remove('connected');
+    alert("Zařízení odpojeno");
+}
+
+function flashInput() {
+    const el = document.getElementById('codeInput');
+    el.style.borderColor = "#00E676";
+    setTimeout(() => el.style.borderColor = "#444", 1000);
+}
 </script>
+
 </body>
 </html>
