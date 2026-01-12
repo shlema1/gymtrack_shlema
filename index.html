@@ -1,52 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GymTrack</title>
+
 <style>
-body{background:#111;color:#eee;font-family:sans-serif;text-align:center}
-button{padding:14px;margin:6px;width:100%;font-weight:bold}
-.card{background:#1e1e1e;padding:16px;border-radius:12px;margin:10px}
-.big{font-size:4rem;color:#00e676}
+:root {
+  --bg:#111; --card:#1e1e1e; --accent:#00e676; --bad:#ff5252;
+}
+body {
+  margin:0; background:var(--bg); color:#eee;
+  font-family:system-ui; text-align:center;
+}
+.card {
+  background:var(--card);
+  margin:12px; padding:16px;
+  border-radius:14px;
+}
+button {
+  padding:14px; margin:6px;
+  border:none; border-radius:10px;
+  font-weight:700; width:100%;
+}
+.green{background:var(--accent); color:#000}
+.red{background:#ff5252}
+.gray{background:#333;color:#aaa}
+.active{outline:2px solid var(--accent)}
+.big{font-size:4rem;font-weight:900;color:var(--accent)}
+table{width:100%;font-size:.9rem;border-collapse:collapse}
+td,th{padding:6px;border-bottom:1px solid #333}
+.valid{color:var(--accent)}
+.invalid{color:var(--bad)}
+canvas{width:100%;height:180px;background:#000;border-radius:10px}
 </style>
 </head>
+
 <body>
 
 <div class="card">
-  <b>GymTrack</b> 🔋 <span id="bat">--</span>%
-  <button onclick="connect()">CONNECT</button>
+  <b>GYMTRACK</b> 🔋 <span id="bat">--</span>%
+  <button class="green" onclick="connect()">CONNECT</button>
 </div>
 
 <div id="ui" style="display:none">
-  <div class="card"><div class="big" id="rep">0</div>REPS</div>
 
   <div class="card">
-    <button onclick="cmd('START_SET')">START SET</button>
-    <button onclick="cmd('STOP_SET')">STOP SET</button>
+    <div class="big" id="repLive">0</div>
+    <div style="color:#888">LIVE REPS</div>
   </div>
 
+  <div class="card">
+    <button class="green" onclick="cmd('START_SET')">START SET</button>
+    <button class="red" onclick="cmd('STOP_SET')">STOP SET</button>
+  </div>
+
+  <!-- MODE -->
+  <div class="card">
+    <div><b>MODE</b></div>
+    <button id="mLin" class="gray active" onclick="setMode('LIN')">LINEAR</button>
+    <button id="mRot" class="gray" onclick="setMode('ROT')">ROTATION</button>
+  </div>
+
+  <!-- AXIS -->
+  <div class="card">
+    <div><b>AXIS</b></div>
+    <button onclick="setAxis('X')">X</button>
+    <button onclick="setAxis('Y')">Y</button>
+    <button onclick="setAxis('Z')">Z</button>
+  </div>
+
+  <!-- CAL -->
   <div class="card">
     <button onclick="cmd('CAL_AUTO_START')">AUTO CAL START</button>
     <button onclick="cmd('CAL_AUTO_STOP')">AUTO CAL STOP</button>
   </div>
 
+  <!-- CODE -->
   <div class="card">
-    <input id="code" placeholder="LZ:12-84">
-    <button onclick="cmd('IMPORT:'+code.value)">IMPORT</button>
+    <input id="codeIn" placeholder="LZ:12-84" style="width:65%;padding:12px">
+    <button onclick="cmd('IMPORT:'+codeIn.value)">IMPORT</button>
   </div>
 
-  <table width="100%" id="log"></table>
+  <!-- GRAPH -->
+  <div class="card">
+    <canvas id="graph"></canvas>
+    <button onclick="clearGraph()">CLEAR GRAPH</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Range</th><th>CM</th><th>Conf</th><th>Time</th></tr>
+      </thead>
+      <tbody id="log"></tbody>
+    </table>
+  </div>
+
 </div>
 
 <script>
+/* UUIDs */
 const S="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const C={cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
-stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
-rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
-ex:"70308365-5381-4209-9150-14966601f01c"};
-let cmdChar;
+const C={
+ cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
+ stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
+ rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
+ ex:"70308365-5381-4209-9150-14966601f01c"
+};
 
+let cmdChar;
+let graphData=[];
+const ctx=document.getElementById("graph").getContext("2d");
+
+/* BLE */
 async function connect(){
  const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
  const g=await d.gatt.connect();
@@ -57,24 +125,59 @@ async function connect(){
   .then(c=>c.oncharacteristicvaluechanged=e=>{
     const j=JSON.parse(new TextDecoder().decode(e.target.value));
     bat.innerText=j.bat;
+    graphData.push(j.pos);
+    drawGraph();
   });
 
  (await s.getCharacteristic(C.rep)).startNotifications()
   .then(c=>c.oncharacteristicvaluechanged=e=>{
     const j=JSON.parse(new TextDecoder().decode(e.target.value));
-    rep.innerText=j.rep;
-    log.innerHTML=`<tr><td>${j.rep}</td><td>${(j.dist||0).toFixed(1)}cm</td></tr>`+log.innerHTML;
+    repLive.innerText=j.rep;
+
+    const conf=Math.min(100,
+      Math.round(j.range*100 * (j.dist>0?1:0.7))
+    );
+
+    log.innerHTML=
+      `<tr>
+        <td>${j.rep}</td>
+        <td>${Math.round(j.range*100)}%</td>
+        <td>${j.dist.toFixed(1)}</td>
+        <td class="${conf>70?'valid':'invalid'}">${conf}%</td>
+        <td>${j.conc.toFixed(1)}/${j.ecc.toFixed(1)}</td>
+      </tr>` + log.innerHTML;
   });
 
  (await s.getCharacteristic(C.ex)).startNotifications()
   .then(c=>c.oncharacteristicvaluechanged=e=>{
-    code.value=new TextDecoder().decode(e.target.value);
+    codeIn.value=new TextDecoder().decode(e.target.value);
   });
 
  ui.style.display="block";
 }
 
+/* COMMANDS */
 function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c))}
+function setMode(m){
+ cmd(m=='LIN'?'MODE_LIN':'MODE_ROT');
+ mLin.classList.toggle("active",m=='LIN');
+ mRot.classList.toggle("active",m=='ROT');
+}
+function setAxis(a){cmd("AXIS_"+a)}
+
+/* GRAPH */
+function drawGraph(){
+ ctx.clearRect(0,0,graph.width,graph.height);
+ ctx.beginPath();
+ graphData.slice(-200).forEach((v,i)=>{
+   let x=i*(graph.width/200);
+   let y=graph.height-(v*graph.height);
+   if(i==0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+ });
+ ctx.strokeStyle="#00e676"; ctx.stroke();
+}
+function clearGraph(){graphData=[]}
 </script>
+
 </body>
 </html>
