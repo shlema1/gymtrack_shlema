@@ -3,84 +3,96 @@
 <head>
 <meta charset="utf-8">
 <title>GymTrack</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{background:#111;color:#eee;font-family:sans-serif}
-.card{background:#1e1e1e;padding:15px;margin:10px;border-radius:12px}
-button{padding:10px;margin:5px}
-.hidden{display:none}
+body { background:#121212; color:#eee; font-family:sans-serif; text-align:center }
+button { padding:14px; margin:6px; font-weight:bold }
+.big { font-size:4rem }
+table { width:100%; margin-top:10px }
+td { padding:6px; border-bottom:1px solid #333 }
 </style>
 </head>
 <body>
 
-<div id="connect" class="card">
 <button onclick="connect()">CONNECT</button>
-</div>
+<div>Battery: <span id="bat">--</span>%</div>
 
-<div id="main" class="hidden">
-<div class="card">
-MODE:
+<div class="big" id="reps">0</div>
+
+<button onclick="cmd('START_SET')">START</button>
+<button onclick="cmd('STOP_SET')">STOP</button>
+
+<hr>
+
 <button onclick="cmd('MODE_L')">LINEAR</button>
 <button onclick="cmd('MODE_A')">AXIS</button>
-</div>
 
-<div class="card">
-<button onclick="cmd('CAL_AUTO_START')">AUTO CAL START</button>
-<button onclick="cmd('CAL_AUTO_STOP')">AUTO CAL STOP</button>
+<button onclick="cmd('AX_X')">X</button>
+<button onclick="cmd('AX_Y')">Y</button>
+<button onclick="cmd('AX_Z')">Z</button>
+
+<hr>
+
+<button onclick="cmd('CAL_MIN')">BOTTOM</button>
+<button onclick="cmd('CAL_MAX')">TOP</button>
+
+<hr>
+
 <input id="code">
-<button onclick="cmd('IMPORT:'+code.value)">IMPORT</button>
-</div>
+<button onclick="importCode()">IMPORT</button>
 
-<div class="card">
-<button onclick="cmd('START')">START SET</button>
-<button onclick="cmd('STOP')">STOP</button>
-</div>
-
-<div class="card">
-<h3>REPS</h3>
-<table id="log"></table>
-</div>
-
-<div class="card">
-<canvas id="chart"></canvas>
-</div>
-</div>
+<table>
+<thead><tr><td>#</td><td>Dist</td><td>Time</td></tr></thead>
+<tbody id="log"></tbody>
+</table>
 
 <script>
-const S="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const C={cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
-stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
-rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
-code:"70308365-5381-4209-9150-14966601f01c"};
-let cmdChar,chart,data=[];
+const SVC = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const CMD = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const STAT= "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+const REP = "d4d4791e-0d1c-4772-9c71-2a67c55c7096";
+const EX  = "70308365-5381-4209-9150-14966601f01c";
+
+let cmdChar;
 
 async function connect(){
-const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
-const s=await d.gatt.connect();
-const svc=await s.getPrimaryService(S);
-cmdChar=await svc.getCharacteristic(C.cmd);
+  const dev = await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});
+  const gatt = await dev.gatt.connect();
+  const svc = await gatt.getPrimaryService(SVC);
 
-(await svc.getCharacteristic(C.rep)).startNotifications()
-.then(c=>c.oncharacteristicvaluechanged=e=>{
-const j=JSON.parse(new TextDecoder().decode(e.target.value));
-log.innerHTML+=`<tr><td>S${j.set}</td><td>${j.rep}</td><td>${(j.conf*100).toFixed()}%</td><td>${j.dist.toFixed(1)}cm</td></tr>`;
-data.push(j.dist);
-chart.update();
-});
+  cmdChar = await svc.getCharacteristic(CMD);
 
-(await svc.getCharacteristic(C.code)).startNotifications()
-.then(c=>c.oncharacteristicvaluechanged=e=>code.value=new TextDecoder().decode(e.target.value));
+  (await svc.getCharacteristic(STAT))
+    .startNotifications()
+    .then(c=>c.addEventListener("characteristicvaluechanged",e=>{
+      const t = new TextDecoder().decode(e.target.value);
+      if (t.startsWith("BAT")) document.getElementById("bat").innerText = t.split("|")[1];
+    }));
 
-document.getElementById("connect").classList.add("hidden");
-document.getElementById("main").classList.remove("hidden");
+  (await svc.getCharacteristic(REP))
+    .startNotifications()
+    .then(c=>c.addEventListener("characteristicvaluechanged",e=>{
+      const p = new TextDecoder().decode(e.target.value).split("|");
+      document.getElementById("reps").innerText = p[1];
+      document.getElementById("log").insertAdjacentHTML("afterbegin",
+        `<tr><td>${p[1]}</td><td>${p[2]}</td><td>${p[3]}</td></tr>`
+      );
+    }));
 
-chart=new Chart(document.getElementById("chart"),{
-type:"line",
-data:{labels:[],datasets:[{label:"Trajectory",data:data}]}
-});
+  (await svc.getCharacteristic(EX))
+    .startNotifications()
+    .then(c=>c.addEventListener("characteristicvaluechanged",e=>{
+      document.getElementById("code").value =
+        new TextDecoder().decode(e.target.value);
+    }));
 }
 
-function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c));}
+function cmd(c){
+  if(cmdChar) cmdChar.writeValue(new TextEncoder().encode(c));
+}
+
+function importCode(){
+  cmd("IMPORT:" + document.getElementById("code").value);
+}
 </script>
 </body>
 </html>
