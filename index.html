@@ -3,81 +3,84 @@
 <head>
 <meta charset="utf-8">
 <title>GymTrack</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{background:#111;color:#eee;font-family:sans-serif}
-.card{background:#1c1c1c;padding:15px;border-radius:12px;margin:10px}
-button{padding:10px;width:100%;margin:5px;font-weight:bold}
-canvas{width:100%;height:200px}
-table{width:100%;font-size:12px}
+.card{background:#1e1e1e;padding:15px;margin:10px;border-radius:12px}
+button{padding:10px;margin:5px}
+.hidden{display:none}
 </style>
 </head>
 <body>
 
+<div id="connect" class="card">
+<button onclick="connect()">CONNECT</button>
+</div>
+
+<div id="main" class="hidden">
 <div class="card">
-  <button onclick="connect()">CONNECT</button>
-  🔋 <span id="bat">--</span>%
+MODE:
+<button onclick="cmd('MODE_L')">LINEAR</button>
+<button onclick="cmd('MODE_A')">AXIS</button>
 </div>
 
 <div class="card">
-  <button onclick="cmd('START_SET')">START SET</button>
-  <button onclick="cmd('STOP_SET')">STOP SET</button>
+<button onclick="cmd('CAL_AUTO_START')">AUTO CAL START</button>
+<button onclick="cmd('CAL_AUTO_STOP')">AUTO CAL STOP</button>
+<input id="code">
+<button onclick="cmd('IMPORT:'+code.value)">IMPORT</button>
 </div>
 
 <div class="card">
-  <input id="codeIn">
-  <button onclick="importCode()">IMPORT</button>
+<button onclick="cmd('START')">START SET</button>
+<button onclick="cmd('STOP')">STOP</button>
 </div>
 
 <div class="card">
-  <canvas id="g"></canvas>
+<h3>REPS</h3>
+<table id="log"></table>
 </div>
 
 <div class="card">
-<table>
-<thead><tr><th>Set</th><th>Rep</th><th>cm</th><th>conf</th></tr></thead>
-<tbody id="log"></tbody>
-</table>
+<canvas id="chart"></canvas>
+</div>
 </div>
 
 <script>
 const S="4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const C_CMD="beb5483e-36e1-4688-b7f5-ea07361b26a8";
-const C_STAT="1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
-const C_REP="d4d4791e-0d1c-4772-9c71-2a67c55c7096";
-
-let cmdChar;
-let ctx=document.getElementById("g").getContext("2d");
-let x=0;
+const C={cmd:"beb5483e-36e1-4688-b7f5-ea07361b26a8",
+stat:"1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e",
+rep:"d4d4791e-0d1c-4772-9c71-2a67c55c7096",
+code:"70308365-5381-4209-9150-14966601f01c"};
+let cmdChar,chart,data=[];
 
 async function connect(){
-  const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
-  const s=await d.gatt.connect();
-  const svc=await s.getPrimaryService(S);
-  cmdChar=await svc.getCharacteristic(C_CMD);
+const d=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});
+const s=await d.gatt.connect();
+const svc=await s.getPrimaryService(S);
+cmdChar=await svc.getCharacteristic(C.cmd);
 
-  (await svc.getCharacteristic(C_STAT)).startNotifications()
-    .then(c=>c.addEventListener("characteristicvaluechanged",e=>{
-      let j=JSON.parse(new TextDecoder().decode(e.target.value));
-      document.getElementById("bat").innerText=j.bat;
-      document.getElementById("codeIn").value=j.code;
-    }));
+(await svc.getCharacteristic(C.rep)).startNotifications()
+.then(c=>c.oncharacteristicvaluechanged=e=>{
+const j=JSON.parse(new TextDecoder().decode(e.target.value));
+log.innerHTML+=`<tr><td>S${j.set}</td><td>${j.rep}</td><td>${(j.conf*100).toFixed()}%</td><td>${j.dist.toFixed(1)}cm</td></tr>`;
+data.push(j.dist);
+chart.update();
+});
 
-  (await svc.getCharacteristic(C_REP)).startNotifications()
-    .then(c=>c.addEventListener("characteristicvaluechanged",onRep));
+(await svc.getCharacteristic(C.code)).startNotifications()
+.then(c=>c.oncharacteristicvaluechanged=e=>code.value=new TextDecoder().decode(e.target.value));
+
+document.getElementById("connect").classList.add("hidden");
+document.getElementById("main").classList.remove("hidden");
+
+chart=new Chart(document.getElementById("chart"),{
+type:"line",
+data:{labels:[],datasets:[{label:"Trajectory",data:data}]}
+});
 }
 
-function onRep(e){
-  let d=JSON.parse(new TextDecoder().decode(e.target.value));
-  document.getElementById("log").insertAdjacentHTML("afterbegin",
-    `<tr><td>${d.set}</td><td>${d.rep}</td><td>${d.dist}</td><td>${d.conf}</td></tr>`);
-
-  ctx.fillStyle="#0f0";
-  ctx.fillRect(x,200-d.dist,3,3);
-  x+=3;
-}
-
-function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c))}
-function importCode(){cmd("IMPORT:"+codeIn.value)}
+function cmd(c){cmdChar.writeValue(new TextEncoder().encode(c));}
 </script>
 </body>
 </html>
